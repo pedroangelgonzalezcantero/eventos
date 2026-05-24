@@ -11,5 +11,20 @@ dist/
 # Otros builds
 out/
 
-# env
+# Secretos - NUNCA subir al repo
 .env
+.env.local
+.env.production
+.env.*.local
+
+# Base de datos H2 local
+data/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
