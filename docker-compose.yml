@@ -1,0 +1,60 @@
+version: '3.9'
+
+services:
+  # ─── PostgreSQL ─────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: eventos_postgres
+    environment:
+      POSTGRES_DB: eventosdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: eventos2024
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Backend (Spring Boot) ──────────────────────────────────────────────────
+  # Descomenta esto cuando tengas el JAR listo para producción
+  # backend:
+  #   image: eclipse-temurin:17-jre
+  #   container_name: eventos_backend
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   environment:
+  #     SPRING_PROFILES_ACTIVE: prod
+  #     DB_URL: jdbc:postgresql://postgres:5432/eventosdb
+  #     DB_USER: postgres
+  #     DB_PASSWORD: eventos2024
+  #     ADMIN_PASSWORD: cambiar_en_produccion
+  #     APP_BASE_URL: https://tu-dominio.com
+  #   ports:
+  #     - "8080:8080"
+  #   volumes:
+  #     - ./target/eventos-1.0.0.jar:/app/app.jar
+  #   command: java -jar /app/app.jar
+
+  # ─── pgAdmin (interfaz gráfica para PostgreSQL) ────────────────────────────
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: eventos_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@salon.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
+volumes:
+  postgres_data:
+  pgadmin_data:
+

@@ -1,0 +1,36 @@
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::               (v2.7.18)
+
+2026-05-22 11:11:02.364  INFO 45040 --- [           main] com.salon.eventos.EventosApplication     : Starting EventosApplication v1.0.0 using Java 11.0.17 on ESLSK1750001450 with PID 45040 (C:\Proyectos\Eventos\target\eventos-1.0.0.jar started by pedrgonz in C:\Proyectos\Eventos)
+2026-05-22 11:11:02.382  INFO 45040 --- [           main] com.salon.eventos.EventosApplication     : No active profile set, falling back to 1 default profile: "default"
+2026-05-22 11:11:07.904  INFO 45040 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-05-22 11:11:08.496  INFO 45040 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 511 ms. Found 17 JPA repository interfaces.
+2026-05-22 11:11:19.444  INFO 45040 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port(s): 8080 (http)
+2026-05-22 11:11:19.509  INFO 45040 --- [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-05-22 11:11:19.512  INFO 45040 --- [           main] org.apache.catalina.core.StandardEngine  : Starting Servlet engine: [Apache Tomcat/9.0.83]
+2026-05-22 11:11:20.275  INFO 45040 --- [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-05-22 11:11:20.292  INFO 45040 --- [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 17495 ms
+2026-05-22 11:11:20.492  INFO 45040 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-05-22 11:11:24.233  INFO 45040 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-05-22 11:11:24.306  INFO 45040 --- [           main] o.s.b.a.h2.H2ConsoleAutoConfiguration    : H2 console available at '/h2-console'. Database available at 'jdbc:h2:file:./data/eventosdb'
+2026-05-22 11:11:27.981  INFO 45040 --- [           main] o.hibernate.jpa.internal.util.LogHelper  : HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-05-22 11:11:28.464  INFO 45040 --- [           main] org.hibernate.Version                    : HHH000412: Hibernate ORM core version 5.6.15.Final
+2026-05-22 11:11:30.608  INFO 45040 --- [           main] o.hibernate.annotations.common.Version   : HCANN000001: Hibernate Commons Annotations {5.1.2.Final}
+2026-05-22 11:11:32.159  INFO 45040 --- [           main] org.hibernate.dialect.Dialect            : HHH000400: Using dialect: org.hibernate.dialect.H2Dialect
+2026-05-22 11:11:40.871  INFO 45040 --- [           main] o.h.e.t.j.p.i.JtaPlatformInitiator       : HHH000490: Using JtaPlatform implementation: [org.hibernate.engine.transaction.jta.platform.internal.NoJtaPlatform]
+2026-05-22 11:11:40.911  INFO 45040 --- [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-05-22 11:11:46.599  WARN 45040 --- [           main] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-05-22 11:11:54.709  INFO 45040 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port(s): 8080 (http) with context path ''
+2026-05-22 11:11:54.810  INFO 45040 --- [           main] com.salon.eventos.EventosApplication     : Started EventosApplication in 57.751 seconds (JVM running for 60.217)
+🎉 Salon de Celebraciones - Sistema iniciado correctamente
+📡 API en: http://localhost:8080
+🗄️  H2 Console: http://localhost:8080/h2-console
+2026-05-22 11:16:48.458  INFO 45040 --- [nio-8080-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-05-22 11:16:48.460  INFO 45040 --- [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-05-22 11:16:48.462  INFO 45040 --- [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 1 ms

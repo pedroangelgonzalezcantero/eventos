@@ -1,0 +1,116 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    @apply bg-stone-50 text-stone-900;
+  }
+  * {
+    @apply box-border;
+  }
+}
+
+@layer components {
+  /* ── Buttons ── */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 bg-rose-600 hover:bg-rose-700 active:bg-rose-800
+           text-white font-semibold py-2.5 px-5 rounded-xl transition-all duration-150
+           disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-rose-200/60 hover:shadow-md;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 bg-white hover:bg-stone-50 active:bg-stone-100
+           text-stone-700 font-medium py-2.5 px-5 rounded-xl border border-stone-200
+           transition-all duration-150 shadow-sm;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 hover:bg-stone-100 active:bg-stone-200
+           text-stone-600 font-medium py-2 px-3 rounded-lg transition-all duration-150;
+  }
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700
+           text-white font-semibold py-2.5 px-5 rounded-xl transition-all duration-150 shadow-sm;
+  }
+  .btn-success {
+    @apply inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700
+           text-white font-semibold py-2.5 px-5 rounded-xl transition-all duration-150 shadow-sm;
+  }
+
+  /* ── Cards ── */
+  .card {
+    @apply bg-white rounded-2xl border border-stone-100 p-6 shadow-sm;
+  }
+  .card-hover {
+    @apply card cursor-pointer hover:shadow-md hover:border-stone-200 transition-all duration-200;
+  }
+  .card-glass {
+    @apply bg-white/80 backdrop-blur-sm rounded-2xl border border-white/60 p-6 shadow-md;
+  }
+
+  /* ── Forms ── */
+  .input {
+    @apply w-full rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm text-stone-900
+           placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-rose-500/20
+           focus:border-rose-400 transition-all duration-150;
+  }
+  .label {
+    @apply block text-sm font-medium text-stone-600 mb-1.5;
+  }
+
+  /* ── Badges ── */
+  .badge {
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold;
+  }
+
+  /* ── Status dots ── */
+  .status-dot {
+    @apply inline-block w-2 h-2 rounded-full;
+  }
+
+  /* ── Section headers ── */
+  .section-title {
+    @apply text-lg font-bold text-stone-900;
+  }
+  .section-subtitle {
+    @apply text-sm text-stone-500 mt-0.5;
+  }
+
+  /* ── Timeline ── */
+  .timeline-line {
+    @apply absolute left-6 top-0 bottom-0 w-px bg-gradient-to-b from-rose-200 via-rose-100 to-transparent;
+  }
+  .timeline-dot {
+    @apply w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-sm flex-none;
+  }
+
+  /* ── Allergen badges ── */
+  .badge-allergen {
+    @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold border;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: #d1cdc7 transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 4px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: #d1cdc7;
+    border-radius: 4px;
+  }
+  .text-gradient {
+    @apply bg-gradient-to-r from-rose-600 to-pink-600 bg-clip-text text-transparent;
+  }
+}
