@@ -75,3 +75,6 @@
 ­ƒÄë Salon de Celebraciones - Sistema iniciado correctamente
 ­ƒôí API en: http://localhost:8080
 ­ƒùä´©Å  H2 Console: http://localhost:8080/h2-console
+2026-05-24 21:09:44.988  INFO 25184 --- [nio-8080-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-05-24 21:09:44.989  INFO 25184 --- [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-05-24 21:09:44.997  INFO 25184 --- [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 8 ms
