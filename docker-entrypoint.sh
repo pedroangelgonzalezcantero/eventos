@@ -1,15 +1,16 @@
 #!/bin/sh
-# Convierte la URL de Render (postgres://) al formato de JDBC (jdbc:postgresql://)
-# Render inyecta DATABASE_URL como: postgres://user:pass@host:port/dbname
+set -e
 
+echo "=== Iniciando Salon de Celebraciones ==="
+echo "    Perfil: ${SPRING_PROFILES_ACTIVE:-default}"
+
+# Render puede dar la URL como postgres:// → convertir a jdbc:postgresql://
 if [ -n "$DATABASE_URL" ]; then
-  # Si empieza por "postgres://" lo convierte a "jdbc:postgresql://"
   export DATABASE_URL=$(echo "$DATABASE_URL" | sed 's|^postgres://|jdbc:postgresql://|')
-  echo "DATABASE_URL configurada: ${DATABASE_URL%%@*}@..."
+  echo "    DATABASE_URL: configurada correctamente"
 else
-  echo "ERROR: La variable DATABASE_URL no está definida."
-  exit 1
+  echo "    DATABASE_URL: no definida, usando valor por defecto de application.properties"
 fi
 
+echo "=== Arrancando Spring Boot ==="
 exec java -jar app.jar
-
