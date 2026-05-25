@@ -14,13 +14,17 @@ RUN mvn clean package -DskipTests -B
 FROM eclipse-temurin:8-jre-alpine
 WORKDIR /app
 
+# Instalar bash/sh para el entrypoint script
+RUN apk add --no-cache bash
+
 # Copiar el JAR generado
 COPY --from=build /app/target/eventos-1.0.0.jar app.jar
+COPY docker-entrypoint.sh docker-entrypoint.sh
+RUN chmod +x docker-entrypoint.sh
 
 # Forzar perfil de producción siempre en el contenedor
 ENV SPRING_PROFILES_ACTIVE=prod
 
-# Puerto que expone el backend
 EXPOSE 8080
 
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["sh", "docker-entrypoint.sh"]
