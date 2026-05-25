@@ -24,4 +24,4 @@ EXPOSE 8080
 
 # Convertir DATABASE_URL de formato postgres:// a jdbc:postgresql:// inline
 # (evita problemas CRLF con scripts externos)
-ENTRYPOINT ["sh", "-c", "export SPRING_DATASOURCE_URL=$(echo \"$DATABASE_URL\" | sed 's|^postgres://|jdbc:postgresql://|;s|^postgresql://|jdbc:postgresql://|') && echo \"=== DB URL: $SPRING_DATASOURCE_URL ===\" && exec java -Dspring.profiles.active=prod -jar app.jar"]
+ENTRYPOINT ["sh", "-c", "DB=$(echo \"$DATABASE_URL\" | sed 's|^postgres://|jdbc:postgresql://|;s|^postgresql://|jdbc:postgresql://|'); export SPRING_DATASOURCE_URL=\"${DB}?sslmode=disable\"; echo \"=== DB: $SPRING_DATASOURCE_URL ===\"; exec java -Dspring.profiles.active=prod -jar app.jar"]
