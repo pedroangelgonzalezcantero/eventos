@@ -57,6 +57,9 @@ public class PermissionService {
         {Permissions.PDF_ALLERGENS,        "PDF",         "Descargar PDF alérgenos",        "Descargar el informe de alérgenos en PDF"},
         {Permissions.PDF_MENUS,            "PDF",         "Descargar PDF menús",            "Descargar los menús del evento en PDF"},
         {Permissions.PDF_INVOICES,         "PDF",         "Descargar PDF facturación",      "Descargar la factura y pagos en PDF"},
+        {Permissions.PDF_FLOOR_PLAN,       "PDF",         "Descargar plano del salón",      "Descargar el plano del salón en PDF/imagen"},
+        // Planos
+        {Permissions.FLOOR_PLAN_VIEW,      "Planos",      "Ver planos del salón",           "Ver la sección de planos del salón en la vista de sala"},
     };
 
     // Permisos por defecto para cada puesto (solo se usan en el seed inicial)
@@ -74,7 +77,8 @@ public class PermissionService {
             Permissions.USERS_DELETE, Permissions.USERS_MANAGE_PERMS,
             Permissions.DASHBOARD_VIEW,
             Permissions.PDF_PROTOCOL, Permissions.PDF_TABLES, Permissions.PDF_ALLERGENS,
-            Permissions.PDF_MENUS, Permissions.PDF_INVOICES
+            Permissions.PDF_MENUS, Permissions.PDF_INVOICES, Permissions.PDF_FLOOR_PLAN,
+            Permissions.FLOOR_PLAN_VIEW
         ));
         ROLE_TEMPLATES.put("FLOOR", Arrays.asList(
             Permissions.EVENTS_VIEW_ASSIGNED,
@@ -84,7 +88,9 @@ public class PermissionService {
             Permissions.MENUS_VIEW,
             Permissions.ALLERGENS_VIEW,
             Permissions.DASHBOARD_VIEW,
-            Permissions.PDF_PROTOCOL, Permissions.PDF_TABLES, Permissions.PDF_ALLERGENS
+            Permissions.PDF_PROTOCOL, Permissions.PDF_TABLES, Permissions.PDF_ALLERGENS,
+            Permissions.PDF_FLOOR_PLAN,
+            Permissions.FLOOR_PLAN_VIEW
         ));
         ROLE_TEMPLATES.put("KITCHEN", Arrays.asList(
             Permissions.EVENTS_VIEW_ASSIGNED,
@@ -278,6 +284,8 @@ public class PermissionService {
                     .map(pc -> RolePermission.builder().role(code).permissionCode(pc).build())
                     .collect(Collectors.toList());
             rolePermissionRepository.saveAll(toSave);
+            // Eliminar overrides bloqueantes para los permisos restaurados
+            userPermissionRepository.deleteBlockingOverridesForRole(code, defaults);
         }
         return getPositionPermissions(code);
     }
@@ -293,6 +301,10 @@ public class PermissionService {
                     .map(pc -> RolePermission.builder().role(code).permissionCode(pc).build())
                     .collect(Collectors.toList());
             rolePermissionRepository.saveAll(toSave);
+
+            // Eliminar overrides individuales "granted=false" para permisos que ahora
+            // forman parte del rol. Esos overrides bloqueaban el cambio de permisos del puesto.
+            userPermissionRepository.deleteBlockingOverridesForRole(code, permissionCodes);
         }
         return getPositionPermissions(code);
     }

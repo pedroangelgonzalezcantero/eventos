@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+const API_BASE = 'http://localhost:8080/api';
 
 const api = axios.create({
   baseURL: API_BASE,
@@ -11,6 +11,11 @@ const api = axios.create({
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  // Si el body es FormData, dejar que el navegador ponga Content-Type
+  // con el boundary correcto (multipart/form-data; boundary=...)
+  if (config.data instanceof FormData) {
+    delete config.headers['Content-Type'];
+  }
   return config;
 });
 

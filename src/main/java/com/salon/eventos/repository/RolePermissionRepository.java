@@ -12,7 +12,7 @@ public interface RolePermissionRepository extends JpaRepository<RolePermission, 
     List<RolePermission> findByRole(String role);
     boolean existsByRoleAndPermissionCode(String role, String permissionCode);
 
-    @Modifying
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("DELETE FROM RolePermission rp WHERE rp.role = :role")
     void deleteByRole(@Param("role") String role);
 }

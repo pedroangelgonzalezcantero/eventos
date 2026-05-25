@@ -64,7 +64,7 @@ export default function KitchenView() {
           </div>
           {selectedEvent && (
             <PdfDownloadButton
-              permissionCode="MENUS_VIEW"
+              permissionCode="PDF_MENUS"
               label="Descargar cocina PDF"
               variant="primary"
               fileName={`cocina-${(selectedEvent.clientName || 'evento').replace(/\s+/g, '-').toLowerCase()}.pdf`}
@@ -103,7 +103,7 @@ export default function KitchenView() {
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold text-gray-800">🍽️ Menú seleccionado</h3>
                 <PdfDownloadButton
-                  permissionCode="MENUS_VIEW"
+                  permissionCode="PDF_MENUS"
                   label="PDF menús"
                   fileName={`menus-${(selectedEvent?.clientName || 'evento').replace(/\s+/g, '-').toLowerCase()}.pdf`}
                   fetchData={async () => {
@@ -140,7 +140,7 @@ export default function KitchenView() {
                   ⚠️ Alérgenos y dietas especiales {canViewAllergens && `(${allergens.length} personas)`}
                 </h3>
                 <PdfDownloadButton
-                  permissionCode="ALLERGENS_VIEW"
+                  permissionCode="PDF_ALLERGENS"
                   label="PDF alérgenos"
                   fileName={`alergenos-${(selectedEvent?.clientName || 'evento').replace(/\s+/g, '-').toLowerCase()}.pdf`}
                   fetchData={async () => {

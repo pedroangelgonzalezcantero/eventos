@@ -85,7 +85,9 @@ public class GuestTableService {
                 .diet(dto.getDiet())
                 .observations(dto.getObservations())
                 .build();
-        return toGuestDto(guestRepo.save(guest));
+        Guest saved = guestRepo.save(guest);
+        updateAllergenFlag(table.getEvent().getId());
+        return toGuestDto(saved);
     }
 
     public GuestDto updateGuest(Long guestId, GuestDto dto) {
@@ -95,7 +97,9 @@ public class GuestTableService {
         guest.setAllergies(dto.getAllergies());
         guest.setDiet(dto.getDiet());
         guest.setObservations(dto.getObservations());
-        return toGuestDto(guestRepo.save(guest));
+        Guest saved = guestRepo.save(guest);
+        updateAllergenFlag(saved.getTable().getEvent().getId());
+        return toGuestDto(saved);
     }
 
     /** Mueve un invitado a otra mesa */
@@ -109,7 +113,22 @@ public class GuestTableService {
     }
 
     public void deleteGuest(Long guestId) {
+        Guest guest = guestRepo.findById(guestId)
+                .orElseThrow(() -> new RuntimeException("Invitado no encontrado: " + guestId));
+        Long eventId = guest.getTable().getEvent().getId();
         guestRepo.deleteById(guestId);
+        updateAllergenFlag(eventId);
+    }
+
+    /** Sincroniza el flag allergensCompleted del evento basándose en los guests */
+    private void updateAllergenFlag(Long eventId) {
+        Event event = eventRepo.findById(eventId).orElse(null);
+        if (event == null) return;
+        boolean hasRestrictions = guestRepo.findByEventId(eventId).stream().anyMatch(g ->
+                (g.getAllergies() != null && !g.getAllergies().trim().isEmpty())
+                || (g.getDiet() != null && !g.getDiet().trim().isEmpty()));
+        event.setAllergensCompleted(hasRestrictions);
+        eventRepo.save(event);
     }
 
     // ─── MAPPERS ─────────────────────────────────────────────────────────────

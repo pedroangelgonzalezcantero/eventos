@@ -17,19 +17,24 @@ import CalendarView from './pages/admin/CalendarView';
 import AutomationSettings from './pages/admin/AutomationSettings';
 import ClientPortal from './pages/client/ClientPortal';
 
+/**
+ * Redirige al usuario a la primera sección que tiene permitida.
+ * Orden de prioridad: Dashboard → Sala → Protocolo → Cocina → no-autorizado
+ */
 function HomeRedirect() {
-  const { user, hasAnyPermission } = useAuth();
+  const { user, hasPermission, hasAnyPermission } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
-  if (user.role === 'CLIENT')  return <Navigate to="/mi-evento" replace />;
-  if (user.role === 'OFFICE')  return <Navigate to="/admin/dashboard" replace />;
-  if (user.role === 'KITCHEN') return <Navigate to="/admin/cocina" replace />;
-  if (user.role === 'DJ')      return <Navigate to="/admin/dj" replace />;
-  if (user.role === 'FLOOR')   return <Navigate to="/admin/sala" replace />;
-  // Roles personalizados: redirigir según permisos
-  if (hasAnyPermission('DASHBOARD_VIEW')) return <Navigate to="/admin/dashboard" replace />;
-  if (hasAnyPermission('PROTOCOL_VIEW'))  return <Navigate to="/admin/dj" replace />;
-  if (hasAnyPermission('TABLES_VIEW'))    return <Navigate to="/admin/sala" replace />;
-  if (hasAnyPermission('ALLERGENS_VIEW', 'MENUS_VIEW')) return <Navigate to="/admin/cocina" replace />;
+
+  // Roles con destino fijo
+  if (user.role === 'CLIENT')  return <Navigate to="/mi-evento"        replace />;
+  if (user.role === 'OFFICE')  return <Navigate to="/admin/dashboard"  replace />;
+
+  // Todos los demás: navegar a la primera sección habilitada por permisos
+  if (hasPermission('DASHBOARD_VIEW'))                              return <Navigate to="/admin/dashboard" replace />;
+  if (hasPermission('TABLES_VIEW'))                                 return <Navigate to="/admin/sala"      replace />;
+  if (hasPermission('PROTOCOL_VIEW'))                               return <Navigate to="/admin/dj"        replace />;
+  if (hasAnyPermission('ALLERGENS_VIEW', 'MENUS_VIEW'))            return <Navigate to="/admin/cocina"    replace />;
+
   return <Navigate to="/no-autorizado" replace />;
 }
 
@@ -45,10 +50,15 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/" element={<HomeRedirect />} />
 
-          {/* Rutas de administración — solo OFFICE */}
+          {/* ── Dashboard
+              Accesible para OFFICE (siempre) O cualquier usuario con DASHBOARD_VIEW */}
           <Route path="/admin/dashboard" element={
-            <PrivateRoute roles={['OFFICE']}><Dashboard /></PrivateRoute>
+            <PrivateRoute roles={['OFFICE']} anyPermission={['DASHBOARD_VIEW']}>
+              <Dashboard />
+            </PrivateRoute>
           } />
+
+          {/* ── Rutas exclusivas de OFFICE ─────────────────────────────────── */}
           <Route path="/admin/eventos" element={
             <PrivateRoute roles={['OFFICE']}><EventList /></PrivateRoute>
           } />
@@ -71,19 +81,30 @@ export default function App() {
             <PrivateRoute roles={['OFFICE']}><AutomationSettings /></PrivateRoute>
           } />
 
-          {/* Vistas de staff — rol fijo O permiso equivalente */}
+          {/* ── Vistas de staff — acceso por ROL o por PERMISO ─────────────────
+              anyPermission permite que cualquier usuario con el permiso adecuado
+              acceda aunque su rol no sea el "nativo" de la vista.
+              Los roles legacy (KITCHEN, DJ, FLOOR) siguen funcionando como antes. */}
+
+          {/* Vista Cocina: requiere ver menús O ver alérgenos */}
           <Route path="/admin/cocina" element={
-            <PrivateRoute roles={['OFFICE','KITCHEN']} anyPermission={['ALLERGENS_VIEW','MENUS_VIEW']}>
+            <PrivateRoute roles={['OFFICE', 'KITCHEN']} anyPermission={['ALLERGENS_VIEW', 'MENUS_VIEW']}>
               <KitchenView />
             </PrivateRoute>
           } />
+
+          {/* Vista DJ / Protocolo: requiere ver protocolo */}
           <Route path="/admin/dj" element={
-            <PrivateRoute roles={['OFFICE','DJ']} anyPermission={['PROTOCOL_VIEW']}>
+            <PrivateRoute roles={['OFFICE', 'DJ']} anyPermission={['PROTOCOL_VIEW']}>
               <DjView />
             </PrivateRoute>
           } />
+
+          {/* Vista Sala / Mesas: requiere ver mesas
+              (TABLES_VIEW incluye acceso a la vista completa; FloorView
+               gestiona internamente qué pestañas mostrar por permiso) */}
           <Route path="/admin/sala" element={
-            <PrivateRoute roles={['OFFICE','FLOOR']} anyPermission={['TABLES_VIEW','GUESTS_VIEW']}>
+            <PrivateRoute roles={['OFFICE', 'FLOOR']} anyPermission={['TABLES_VIEW']}>
               <FloorView />
             </PrivateRoute>
           } />

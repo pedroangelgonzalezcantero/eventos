@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Sparkles, Lock, User, Eye, EyeOff } from 'lucide-react';
+import { Lock, User, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
+import logoApp from '../assets/logoApp.png';
 
 export default function Login() {
   const [form, setForm] = useState({ username: '', password: '' });
@@ -40,11 +41,11 @@ export default function Login() {
       <div className="w-full max-w-sm relative">
         {/* Logo + heading */}
         <div className="text-center mb-8">
-          <div className="inline-flex w-16 h-16 bg-gradient-to-br from-rose-500 to-pink-600 rounded-2xl items-center justify-center shadow-lg shadow-rose-200 mb-4">
-            <Sparkles size={28} className="text-white" />
+          <div className="inline-flex w-24 h-24 rounded-3xl shadow-lg shadow-rose-200 overflow-hidden mb-4">
+            <img src={logoApp} alt="Logo" className="w-full h-full object-cover scale-150" />
           </div>
-          <h1 className="text-2xl font-bold text-stone-900">Salon de Celebraciones</h1>
-          <p className="text-stone-500 text-sm mt-1">Accede a tu plataforma de gestión</p>
+          <h1 className="text-2xl font-bold text-stone-900">Salón de celebraciones</h1>
+          <p className="text-stone-500 text-sm mt-1">Accede a tu plataforma de gestión para tu evento</p>
         </div>
 
         {/* Card */}

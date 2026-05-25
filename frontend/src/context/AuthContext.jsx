@@ -52,6 +52,22 @@ export function AuthProvider({ children }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Escucha notificaciones BroadcastChannel de cambios de permisos desde otra pestaña.
+  // Así, si el admin guarda permisos en una pestaña, las demás pestañas abiertas
+  // (incluyendo sesiones de otros roles en el mismo navegador) refrescan automáticamente.
+  useEffect(() => {
+    let bc;
+    try {
+      bc = new BroadcastChannel('perms_updated');
+      bc.onmessage = () => {
+        const token = localStorage.getItem('token');
+        if (token) refreshPermissions();
+      };
+    } catch { /* BroadcastChannel no disponible */ }
+    return () => { try { bc?.close(); } catch {} };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const isRole = useCallback((...roles) => {
     return user && roles.includes(user.role);
   }, [user]);

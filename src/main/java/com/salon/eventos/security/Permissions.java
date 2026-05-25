@@ -54,11 +54,15 @@ public final class Permissions {
     // Dashboard
     public static final String DASHBOARD_VIEW        = "DASHBOARD_VIEW";
 
+    // Planos del salón
+    public static final String FLOOR_PLAN_VIEW       = "FLOOR_PLAN_VIEW";
+
     // Exportación PDF
     public static final String PDF_PROTOCOL          = "PDF_PROTOCOL";
     public static final String PDF_TABLES            = "PDF_TABLES";
     public static final String PDF_ALLERGENS         = "PDF_ALLERGENS";
     public static final String PDF_MENUS             = "PDF_MENUS";
     public static final String PDF_INVOICES          = "PDF_INVOICES";
+    public static final String PDF_FLOOR_PLAN        = "PDF_FLOOR_PLAN";
 }
 

@@ -154,7 +154,7 @@ export default function ClientPortal() {
           <motion.div key={tab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
             {tab === 'inicio'      && <InicioTab event={event} tasks={tasks} setTab={setTab} />}
             {tab === 'menu'        && <MenuTab event={event} menus={menus} reload={loadData} />}
-            {tab === 'alergenos'   && <AlergensTab event={event} allergens={allergens} reload={loadData} />}
+            {tab === 'alergenos'   && <AlergensTab event={event} tables={tables} reload={() => { reloadTables(); loadData(); }} onGoToMesas={() => setTab('mesas')} />}
             {tab === 'protocolo'   && <ProtocoloTab event={event} items={protocol} reload={loadData} />}
             {tab === 'mesas'       && <MesasTab event={event} tables={tables} reloadTables={reloadTables} />}
             {tab === 'facturacion' && <FacturacionTab event={event} invoice={invoice} reload={loadData} />}
@@ -233,69 +233,327 @@ function MenuTab({ event, menus, reload }) {
 }
 
 // ── Alérgenos ─────────────────────────────────────────────────────────────────
-function AlergensTab({ event, allergens, reload }) {
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ guestName: '', tableNumber: '', diet: '', observations: '' });
-  const [selected, setSelected] = useState([]);
-  const toggle = (a) => setSelected(p => p.includes(a) ? p.filter(x => x !== a) : [...p, a]);
-  const handleAdd = async () => {
-    if (!form.guestName) { toast.error('Indica el nombre del invitado'); return; }
-    try { await api.post(`/events/${event.id}/allergens`, { ...form, allergies: selected.join(',') }); reload(); setShowForm(false); setForm({ guestName: '', tableNumber: '', diet: '', observations: '' }); setSelected([]); toast.success('Invitado añadido'); }
-    catch { toast.error('Error'); }
+function AlergensTab({ event, tables, reload, onGoToMesas }) {
+  // ── Formulario añadir ────────────────────────────────────────────────────
+  const [showForm,     setShowForm]    = useState(false);
+  const [formMesaId,   setFormMesaId]  = useState('');
+  const [formGuestId,  setFormGuestId] = useState('');
+  const [newAllergies, setNewAllergies]= useState([]);
+  const [newDiet,      setNewDiet]     = useState('');
+  const [newObs,       setNewObs]      = useState('');
+
+  // ── Edición inline ───────────────────────────────────────────────────────
+  const [editingId, setEditingId] = useState(null);
+  const [editForm,  setEditForm]  = useState({ allergies: [], diet: '', observations: '' });
+  const [saving,    setSaving]    = useState(false);
+
+  // ── Datos derivados ───────────────────────────────────────────────────────
+  const allGuests = tables.flatMap(t =>
+    (t.guests || []).map(g => ({ ...g, tableName: t.name, tableId: t.id }))
+  );
+  // Solo mesas con al menos un invitado con restricción
+  const tablesWithRestrictions = tables.filter(t =>
+    (t.guests || []).some(g => g.allergies || g.diet)
+  );
+  const withCount = allGuests.filter(g => g.allergies || g.diet).length;
+  const guestsInFormMesa = formMesaId
+    ? (tables.find(t => t.id === parseInt(formMesaId))?.guests || [])
+    : [];
+
+  const openForm = () => {
+    setShowForm(true); setFormMesaId(''); setFormGuestId('');
+    setNewAllergies([]); setNewDiet(''); setNewObs('');
   };
-  const handleDelete = async (id) => { try { await api.delete(`/events/${event.id}/allergens/${id}`); reload(); } catch { toast.error('Error'); } };
-  return (
+  const toggleNew = a =>
+    setNewAllergies(p => p.includes(a) ? p.filter(x => x !== a) : [...p, a]);
+
+  const handleAdd = async () => {
+    if (!formGuestId) { toast.error('Selecciona un invitado'); return; }
+    const mesa  = tables.find(t => t.id === parseInt(formMesaId));
+    const guest = (mesa?.guests || []).find(g => g.id === parseInt(formGuestId));
+    if (!guest) return;
+    if (!newAllergies.length && !newDiet) { toast.error('Selecciona al menos un alérgeno o dieta'); return; }
+    setSaving(true);
+    try {
+      await api.put(`/events/${event.id}/tables/${mesa.id}/guests/${guest.id}`, {
+        guestName: guest.guestName,
+        allergies: newAllergies.join(','),
+        diet: newDiet,
+        observations: newObs,
+      });
+      toast.success('Alérgenos guardados');
+      setShowForm(false);
+      reload();
+    } catch { toast.error('Error al guardar'); }
+    finally { setSaving(false); }
+  };
+
+  const startEdit = g => {
+    setEditingId(g.id);
+    setEditForm({
+      allergies:    g.allergies ? g.allergies.split(',').filter(Boolean) : [],
+      diet:         g.diet || '',
+      observations: g.observations || '',
+    });
+  };
+  const toggleEdit = a =>
+    setEditForm(f => ({
+      ...f,
+      allergies: f.allergies.includes(a) ? f.allergies.filter(x => x !== a) : [...f.allergies, a],
+    }));
+
+  const handleSave = async g => {
+    setSaving(true);
+    try {
+      await api.put(`/events/${event.id}/tables/${g.tableId}/guests/${g.id}`, {
+        guestName: g.guestName, allergies: editForm.allergies.join(','),
+        diet: editForm.diet, observations: editForm.observations,
+      });
+      toast.success('Guardado');
+      setEditingId(null); reload();
+    } catch { toast.error('Error'); }
+    finally { setSaving(false); }
+  };
+
+  const handleClear = async g => {
+    if (!confirm(`¿Eliminar las restricciones de ${g.guestName}?`)) return;
+    try {
+      await api.put(`/events/${event.id}/tables/${g.tableId}/guests/${g.id}`,
+        { guestName: g.guestName, allergies: '', diet: '', observations: '' });
+      toast.success('Restricciones eliminadas'); reload();
+    } catch { toast.error('Error'); }
+  };
+
+  // ── Guards ─────────────────────────────────────────────────────────────────
+  if (tables.length === 0) return (
     <div className="space-y-4">
-      <div><h2 className="text-xl font-bold text-stone-900">Alérgenos e intolerancias</h2><p className="text-stone-500 text-sm mt-0.5">La cocina necesita esta información para preparar el servicio con seguridad.</p></div>
-      <button onClick={() => setShowForm(true)} className="btn-primary w-full py-3"><Plus size={16} /> Añadir invitado con restricción</button>
+      <div><h2 className="text-xl font-bold text-stone-900">Alérgenos e intolerancias</h2></div>
+      <div className="card text-center py-14">
+        <AlertTriangle size={40} className="text-stone-300 mx-auto mb-4" />
+        <h3 className="font-semibold text-stone-700 mb-2">Sin mesas creadas</h3>
+        <p className="text-stone-500 text-sm mb-5 px-4">
+          Primero debes crear mesas e invitados antes de gestionar alérgenos.
+        </p>
+        <button onClick={onGoToMesas} className="btn-primary text-sm inline-flex items-center gap-2 mx-auto">
+          <Users2 size={14} /> Ir a Mesas
+        </button>
+      </div>
+    </div>
+  );
+
+  if (allGuests.length === 0) return (
+    <div className="space-y-4">
+      <div><h2 className="text-xl font-bold text-stone-900">Alérgenos e intolerancias</h2></div>
+      <div className="card text-center py-14">
+        <AlertTriangle size={40} className="text-stone-300 mx-auto mb-4" />
+        <h3 className="font-semibold text-stone-700 mb-2">Sin invitados registrados</h3>
+        <p className="text-stone-500 text-sm mb-5 px-4">
+          Añade invitados a tus mesas y luego podrás registrar sus restricciones aquí.
+        </p>
+        <button onClick={onGoToMesas} className="btn-primary text-sm inline-flex items-center gap-2 mx-auto">
+          <Users2 size={14} /> Ir a Mesas
+        </button>
+      </div>
+    </div>
+  );
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+  return (
+    <div className="space-y-5">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <h2 className="text-xl font-bold text-stone-900">Alérgenos e intolerancias</h2>
+          <p className="text-stone-500 text-sm mt-0.5">
+            {withCount > 0 ? `${withCount} invitado${withCount !== 1 ? 's' : ''} con restricciones` : 'Ningún invitado tiene restricciones todavía'}
+          </p>
+        </div>
+        <button onClick={openForm} className="btn-primary text-sm flex-none inline-flex items-center gap-1.5">
+          <Plus size={14} /> Añadir alérgeno
+        </button>
+      </div>
+
+      {/* Formulario 3 pasos */}
       {showForm && (
-        <div className="card border-amber-100 bg-amber-50/30">
-          <h3 className="font-semibold mb-4">Nuevo invitado</h3>
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div><label className="label">Nombre *</label><input className="input" value={form.guestName} onChange={e => setForm(f => ({ ...f, guestName: e.target.value }))} placeholder="Ana García" /></div>
-              <div><label className="label">Mesa</label><input className="input" value={form.tableNumber} onChange={e => setForm(f => ({ ...f, tableNumber: e.target.value }))} placeholder="Mesa 5" /></div>
-            </div>
-            <div><label className="label">Dieta especial</label>
-              <select className="input" value={form.diet} onChange={e => setForm(f => ({ ...f, diet: e.target.value }))}>
-                <option value="">Ninguna</option>
-                {['VEGETARIANO','VEGANO','HALAL','KOSHER','SIN_SAL','DIABETICO'].map(d => <option key={d} value={d}>{d.replace('_', ' ')}</option>)}
-              </select>
-            </div>
-            <div><label className="label">Alérgenos</label>
-              <div className="grid grid-cols-2 gap-2 mt-1">
-                {ALLERGEN_LIST.map(a => (
-                  <button key={a} type="button" onClick={() => toggle(a)} className={`p-2.5 rounded-xl text-xs font-semibold border transition-all text-left ${selected.includes(a) ? 'bg-amber-500 text-white border-amber-500 shadow-sm' : 'bg-white text-stone-600 border-stone-200 hover:border-amber-300'}`}>{ALLERGEN_LABELS[a]}</button>
-                ))}
-              </div>
-            </div>
-            <div><label className="label">Observaciones adicionales</label><input className="input" value={form.observations} onChange={e => setForm(f => ({ ...f, observations: e.target.value }))} placeholder="Alergia muy grave, llevar EpiPen..." /></div>
+        <div className="card border-amber-100 bg-amber-50/30 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-stone-800">Añadir restricción a un invitado</h3>
+            <button onClick={() => setShowForm(false)} className="text-stone-400 hover:text-stone-600 text-xl leading-none">×</button>
           </div>
-          <div className="flex gap-3 mt-4"><button onClick={() => setShowForm(false)} className="btn-secondary flex-1">Cancelar</button><button onClick={handleAdd} className="btn-primary flex-1">Guardar invitado</button></div>
-        </div>
-      )}
-      {allergens.length === 0 && !showForm && <div className="card text-center py-12"><div className="text-3xl mb-3">✅</div><p className="text-stone-500">Sin restricciones registradas.</p></div>}
-      {allergens.length > 0 && (
-        <div className="card">
-          <h3 className="font-semibold mb-4 flex items-center gap-2"><AlertTriangle size={16} className="text-amber-500" />{allergens.length} invitado{allergens.length !== 1 ? 's' : ''} con restricciones</h3>
-          <div className="space-y-2">
-            {allergens.map(e => (
-              <div key={e.id} className="flex items-start justify-between p-3.5 bg-stone-50 rounded-2xl">
-                <div>
-                  <div className="flex items-center gap-2 mb-1"><UserRound size={14} className="text-stone-400" /><p className="font-semibold text-sm text-stone-900">{e.guestName}</p></div>
-                  {e.tableNumber && <p className="text-xs text-stone-400 mb-1.5">📍 {e.tableNumber}</p>}
-                  <div className="flex flex-wrap gap-1">
-                    {e.diet && <span className="badge bg-violet-100 text-violet-700">{e.diet.replace('_', ' ')}</span>}
-                    {e.allergies && e.allergies.split(',').filter(Boolean).map((a, idx) => <span key={a} className={`badge text-[10px] ${ALLERGEN_COLORS[idx % ALLERGEN_COLORS.length]}`}>⚠ {ALLERGEN_LABELS[a] || a}</span>)}
-                  </div>
-                  {e.observations && <p className="text-xs text-stone-400 mt-1.5 italic">{e.observations}</p>}
+
+          {/* Paso 1 — mesa */}
+          <div>
+            <label className="label">Paso 1 — Selecciona la mesa</label>
+            <select className="input" value={formMesaId}
+              onChange={e => { setFormMesaId(e.target.value); setFormGuestId(''); }}>
+              <option value="">— Seleccionar mesa —</option>
+              {tables.map(t => (
+                <option key={t.id} value={t.id}>
+                  {t.name}{t.guestCount ? ` (${t.guestCount} inv.)` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Paso 2 — invitado */}
+          {formMesaId && (
+            <div>
+              <label className="label">Paso 2 — Selecciona el invitado</label>
+              {guestsInFormMesa.length === 0
+                ? <p className="text-sm text-stone-400 italic">Esta mesa no tiene invitados.</p>
+                : (
+                  <select className="input" value={formGuestId} onChange={e => setFormGuestId(e.target.value)}>
+                    <option value="">— Seleccionar invitado —</option>
+                    {guestsInFormMesa.map(g => (
+                      <option key={g.id} value={g.id}>
+                        {g.guestName}{(g.allergies || g.diet) ? ' ⚠' : ''}
+                      </option>
+                    ))}
+                  </select>
+                )}
+            </div>
+          )}
+
+          {/* Paso 3 — alérgenos */}
+          {formGuestId && (
+            <>
+              <div>
+                <label className="label">Paso 3 — Alérgenos</label>
+                <div className="grid grid-cols-2 gap-2 mt-1">
+                  {ALLERGEN_LIST.map(a => (
+                    <button key={a} type="button" onClick={() => toggleNew(a)}
+                      className={`p-2.5 rounded-xl text-xs font-semibold border transition-all text-left ${newAllergies.includes(a) ? 'bg-amber-500 text-white border-amber-500 shadow-sm' : 'bg-white text-stone-600 border-stone-200 hover:border-amber-300'}`}>
+                      {ALLERGEN_LABELS[a]}
+                    </button>
+                  ))}
                 </div>
-                <button onClick={() => handleDelete(e.id)} className="text-stone-300 hover:text-red-500 transition-colors ml-2 flex-none p-1"><Trash2 size={15} /></button>
               </div>
-            ))}
+              <div>
+                <label className="label">Dieta especial</label>
+                <select className="input" value={newDiet} onChange={e => setNewDiet(e.target.value)}>
+                  <option value="">Ninguna</option>
+                  {['VEGETARIANO','VEGANO','HALAL','KOSHER','SIN_SAL','DIABETICO'].map(d =>
+                    <option key={d} value={d}>{d.replace('_', ' ')}</option>
+                  )}
+                </select>
+              </div>
+              <div>
+                <label className="label">Observaciones adicionales</label>
+                <input className="input" value={newObs} onChange={e => setNewObs(e.target.value)}
+                  placeholder="Alergia muy grave, llevar EpiPen..." />
+              </div>
+            </>
+          )}
+
+          <div className="flex gap-3">
+            <button onClick={() => setShowForm(false)} className="btn-secondary flex-1">Cancelar</button>
+            <button onClick={handleAdd} disabled={!formGuestId || saving} className="btn-primary flex-1">
+              {saving ? 'Guardando...' : 'Guardar'}
+            </button>
           </div>
         </div>
       )}
+
+      {/* Sin restricciones */}
+      {tablesWithRestrictions.length === 0 && !showForm && (
+        <div className="card text-center py-10">
+          <div className="text-3xl mb-3">✅</div>
+          <p className="text-stone-500 text-sm">Ningún invitado tiene restricciones registradas.</p>
+          <p className="text-stone-400 text-xs mt-1">Usa "+ Añadir alérgeno" para registrar la primera.</p>
+        </div>
+      )}
+
+      {/* Solo mesas con restricciones */}
+      {tablesWithRestrictions.map(table => {
+        const restricted = (table.guests || [])
+          .filter(g => g.allergies || g.diet)
+          .map(g => ({ ...g, tableId: table.id, tableName: table.name }));
+
+        return (
+          <div key={table.id} className="card">
+            <div className="flex items-center gap-2 mb-3">
+              <h3 className="font-semibold text-stone-900 flex-1">🪑 {table.name}</h3>
+              <span className="badge bg-amber-100 text-amber-700 text-[10px]">
+                ⚠ {restricted.length}
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              {restricted.map(g => {
+                const isEditing = editingId === g.id;
+                return (
+                  <div key={g.id}
+                    className={`rounded-2xl border transition-all ${isEditing ? 'border-amber-200 bg-amber-50/40' : 'border-stone-100 bg-stone-50'}`}>
+
+                    {!isEditing && (
+                      <div className="flex items-start justify-between p-3.5 gap-2">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <UserRound size={13} className="text-stone-400 flex-none" />
+                            <p className="font-semibold text-sm text-stone-900">{g.guestName}</p>
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            {g.diet && <span className="badge bg-violet-100 text-violet-700">{g.diet.replace('_', ' ')}</span>}
+                            {g.allergies && g.allergies.split(',').filter(Boolean).map((a, idx) =>
+                              <span key={a} className={`badge text-[10px] ${ALLERGEN_COLORS[idx % ALLERGEN_COLORS.length]}`}>⚠ {ALLERGEN_LABELS[a] || a}</span>
+                            )}
+                          </div>
+                          {g.observations && <p className="text-xs text-stone-400 mt-1.5 italic">{g.observations}</p>}
+                        </div>
+                        <div className="flex items-center gap-1 flex-none">
+                          <button onClick={() => startEdit(g)} className="p-1.5 rounded-xl text-stone-300 hover:text-blue-600 hover:bg-blue-50 transition-colors">✏️</button>
+                          <button onClick={() => handleClear(g)} className="p-1.5 rounded-xl text-stone-300 hover:text-red-500 hover:bg-red-50 transition-colors"><Trash2 size={14} /></button>
+                        </div>
+                      </div>
+                    )}
+
+                    {isEditing && (
+                      <div className="p-4 space-y-3">
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="font-semibold text-sm text-stone-900">✏️ {g.guestName}</p>
+                          <button onClick={() => setEditingId(null)} className="text-stone-400 hover:text-stone-600 text-lg leading-none">×</button>
+                        </div>
+                        <div>
+                          <label className="label">Dieta especial</label>
+                          <select className="input" value={editForm.diet}
+                            onChange={e => setEditForm(f => ({ ...f, diet: e.target.value }))}>
+                            <option value="">Ninguna</option>
+                            {['VEGETARIANO','VEGANO','HALAL','KOSHER','SIN_SAL','DIABETICO'].map(d =>
+                              <option key={d} value={d}>{d.replace('_', ' ')}</option>
+                            )}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="label">Alérgenos</label>
+                          <div className="grid grid-cols-2 gap-2 mt-1">
+                            {ALLERGEN_LIST.map(a => (
+                              <button key={a} type="button" onClick={() => toggleEdit(a)}
+                                className={`p-2.5 rounded-xl text-xs font-semibold border transition-all text-left ${editForm.allergies.includes(a) ? 'bg-amber-500 text-white border-amber-500 shadow-sm' : 'bg-white text-stone-600 border-stone-200 hover:border-amber-300'}`}>
+                                {ALLERGEN_LABELS[a]}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="label">Observaciones</label>
+                          <input className="input" value={editForm.observations}
+                            onChange={e => setEditForm(f => ({ ...f, observations: e.target.value }))}
+                            placeholder="Alergia muy grave, llevar EpiPen..." />
+                        </div>
+                        <div className="flex gap-3">
+                          <button onClick={() => setEditingId(null)} className="btn-secondary flex-1">Cancelar</button>
+                          <button onClick={() => handleSave(g)} disabled={saving} className="btn-primary flex-1">
+                            {saving ? 'Guardando...' : 'Guardar'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

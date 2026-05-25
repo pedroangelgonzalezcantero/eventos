@@ -111,6 +111,12 @@ export default function JobPositions() {
       await api.put(`/positions/${selected}/permissions`, { permissionCodes });
       // Refrescar el token del admin actual para que sus permisos también se actualicen
       await refreshPermissions();
+      // Notificar a otras pestañas abiertas del mismo navegador para que recarguen permisos
+      try {
+        const bc = new BroadcastChannel('perms_updated');
+        bc.postMessage({ role: selected, ts: Date.now() });
+        bc.close();
+      } catch { /* BroadcastChannel no disponible en algunos entornos */ }
       toast.success('Permisos guardados. Los usuarios afectados los verán al recargar la página.');
       loadPositions(); // refresca contadores
     } catch {
@@ -131,6 +137,11 @@ export default function JobPositions() {
       catalog.forEach(p => { map[p.code] = codes.includes(p.code); });
       setPosPerms(map);
       await refreshPermissions();
+      try {
+        const bc = new BroadcastChannel('perms_updated');
+        bc.postMessage({ role: selected, ts: Date.now() });
+        bc.close();
+      } catch { /* BroadcastChannel no disponible */ }
       toast.success('Permisos restablecidos a los valores por defecto.');
       loadPositions();
     } catch {

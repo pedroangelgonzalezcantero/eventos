@@ -1,5 +1,5 @@
 import React from 'react';
-import { Document, Page, View, Text } from '@react-pdf/renderer';
+import { Document, Page, View, Text, Image } from '@react-pdf/renderer';
 import { styles, COLORS, formatDate } from './pdfStyles';
 import { PdfHeader, PdfFooter } from './PdfPageBase';
 
@@ -30,10 +30,11 @@ function SectionBlock({ title, emoji, color = COLORS.primary, bgColor = COLORS.p
 
 /**
  * PDF Operativo completo para Metre / Jefe de Sala
- * data = { event, protocol, tables, allergens, menus }
+ * data = { event, protocol, tables, allergens, menus, floorPlanBase64?, floorPlanIsImage?, floorPlanFilename? }
  */
 export default function MetreOperativePdfDoc({ data }) {
-  const { event, protocol = [], tables = [], allergens = [], menus = [] } = data;
+  const { event, protocol = [], tables = [], allergens = [], menus = [],
+          floorPlanBase64 = null, floorPlanIsImage = false, floorPlanFilename = null } = data;
 
   const totalGuests         = tables.reduce((s, t) => s + (t.guestCount || 0), 0);
   const tablesWithAllergens = tables.filter(t => t.allergiesCount > 0);
@@ -293,6 +294,26 @@ export default function MetreOperativePdfDoc({ data }) {
         </View>
         <PdfFooter eventName={event?.clientName || ''} sectionLabel={SECTION} />
       </Page>
+
+      {/* ════════════════════════════════════════════════════════════
+          PÁGINA 4 (opcional) — PLANO DEL SALÓN
+      ════════════════════════════════════════════════════════════ */}
+      {floorPlanBase64 && floorPlanIsImage && (
+        <Page size="A4" style={styles.page}>
+          <PdfHeader event={event} sectionLabel={SECTION} sectionIcon="📋" />
+          <View style={styles.body}>
+            <SectionBlock title="Plano del salón" emoji="🗺️" color="#166534" bgColor="#f0fdf4" />
+            {floorPlanFilename && (
+              <Text style={{ fontSize: 8, color: COLORS.light, marginBottom: 8 }}>{floorPlanFilename}</Text>
+            )}
+            <Image
+              src={floorPlanBase64}
+              style={{ maxWidth: '100%', borderRadius: 6, objectFit: 'contain' }}
+            />
+          </View>
+          <PdfFooter eventName={event?.clientName || ''} sectionLabel={SECTION} />
+        </Page>
+      )}
     </Document>
   );
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Layers, Calendar, Users, MapPin, Clock, AlertTriangle, Table2, Lock } from 'lucide-react';
+import { Layers, Calendar, Users, MapPin, Clock, AlertTriangle, Table2, Lock, Map, ZoomIn, ZoomOut, Download } from 'lucide-react';
 import api from '../../api/axios';
 import Layout from '../../components/Layout';
 import toast from 'react-hot-toast';
@@ -42,11 +42,25 @@ export default function FloorView() {
   const [allergens, setAllergens] = useState([]);
   const [tables, setTables] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('timing');
-  // Permisos reales del usuario
+  // Estado para planos
+  const [planMeta, setPlanMeta] = useState(null);
+  const [planUrl,  setPlanUrl]  = useState(null);
+  const [zoom,     setZoom]     = useState(1);
+
   const canViewProtocol  = hasPermission('PROTOCOL_VIEW');
   const canViewTables    = hasPermission('TABLES_VIEW');
   const canViewAllergens = hasPermission('ALLERGENS_VIEW');
+  const canViewFloorPlan = hasPermission('FLOOR_PLAN_VIEW');
+  const canDownloadFloorPlan = hasPermission('PDF_FLOOR_PLAN');
+
+  // Primera pestaña habilitada (se usa como tab inicial para no aterrizar en una bloqueada)
+  const firstAllowedTab =
+    canViewProtocol  ? 'timing'    :
+    canViewTables    ? 'mesas'     :
+    canViewAllergens ? 'alergenos' :
+    canViewFloorPlan ? 'planos'    : 'timing';
+
+  const [activeTab, setActiveTab] = useState(firstAllowedTab);
 
   useEffect(() => {
     api.get('/events/mis-eventos')
@@ -61,25 +75,36 @@ export default function FloorView() {
 
   const loadEvent = async (id) => {
     setSelected(id);
-    setProtocol([]);
-    setAllergens([]);
-    setTables([]);
+    setProtocol([]); setAllergens([]); setTables([]);
+    setPlanMeta(null);
+    if (planUrl) { URL.revokeObjectURL(planUrl); setPlanUrl(null); }
     setLoading(true);
-    // Cada llamada es independiente — un 403 no bloquea las demás
     const [p, a, t] = await Promise.all([
       canViewProtocol  ? api.get(`/events/${id}/protocol`).catch(() => ({ data: [] }))  : Promise.resolve({ data: [] }),
       canViewAllergens ? api.get(`/events/${id}/allergens`).catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
       canViewTables    ? api.get(`/events/${id}/tables`).catch(() => ({ data: [] }))    : Promise.resolve({ data: [] }),
     ]);
-    setProtocol(p.data);
-    setAllergens(a.data);
-    setTables(t.data);
+    setProtocol(p.data); setAllergens(a.data); setTables(t.data);
+    // Cargar plano si existe
+    try {
+      const meta = await api.get(`/events/${id}/floorplan/meta`);
+      // 204 No Content → sin plano
+      if (!meta.data || !meta.data.id) {
+        setPlanMeta(null); setPlanUrl(null);
+      } else {
+        setPlanMeta(meta.data);
+        const res = await api.get(`/events/${id}/floorplan`, { responseType: 'blob' });
+        setPlanUrl(URL.createObjectURL(res.data));
+      }
+    } catch { setPlanMeta(null); setPlanUrl(null); }
     setLoading(false);
   };
 
   const selectedEvent = events.find(e => e.id === selected);
-  const byTable = allergens.reduce((acc, a) => {
-    const t = a.tableNumber || 'Sin mesa asignada';
+  // El endpoint /allergens ahora devuelve TODOS los invitados; filtramos los que tienen restricciones
+  const allergenGuests = allergens.filter(a => a.allergies || a.diet);
+  const byTable = allergenGuests.reduce((acc, a) => {
+    const t = a.tableNumber || a.tableName || 'Sin mesa asignada';
     (acc[t] = acc[t] || []).push(a);
     return acc;
   }, {});
@@ -116,7 +141,7 @@ export default function FloorView() {
           </div>
           {selectedEvent && (
             <PdfDownloadButton
-              permissionCode="TABLES_VIEW"
+              permissionCode="PDF_TABLES"
               label="Descargar PDF operativo"
               variant="primary"
               fileName={`operativo-metre-${(selectedEvent.clientName || 'evento').replace(/\s+/g, '-').toLowerCase()}.pdf`}
@@ -127,7 +152,24 @@ export default function FloorView() {
                   canViewTables    ? api.get(`/events/${selected}/tables`).catch(() => ({ data: [] }))    : Promise.resolve({ data: [] }),
                   api.get(`/events/${selected}/menus`).catch(() => ({ data: [] })),
                 ]);
-                return { event: selectedEvent, protocol: p.data, allergens: a.data, tables: t.data, menus: m.data };
+                // Intentar incluir el plano como imagen en el PDF operativo
+                let floorPlanBase64 = null;
+                let floorPlanIsImage = false;
+                let floorPlanFilename = null;
+                try {
+                  const meta = await api.get(`/events/${selected}/floorplan/meta`);
+                  if (meta.data?.id && meta.data.contentType?.startsWith('image/')) {
+                    const floorRes = await api.get(`/events/${selected}/floorplan`, { responseType: 'blob' });
+                    floorPlanBase64 = await new Promise(resolve => {
+                      const reader = new FileReader();
+                      reader.onloadend = () => resolve(reader.result);
+                      reader.readAsDataURL(floorRes.data);
+                    });
+                    floorPlanIsImage = true;
+                    floorPlanFilename = meta.data.filename;
+                  }
+                } catch { /* sin plano, no es crítico */ }
+                return { event: selectedEvent, protocol: p.data, allergens: a.data, tables: t.data, menus: m.data, floorPlanBase64, floorPlanIsImage, floorPlanFilename };
               }}
               DocumentComponent={MetreOperativePdfDoc}
             />
@@ -173,13 +215,14 @@ export default function FloorView() {
           </motion.div>
         )}
 
-        {/* Tabs internos: Timing / Mesas / Alérgenos */}
-        <div className="flex gap-1 bg-stone-100 rounded-xl p-1 w-fit">
+        {/* Tabs internos: Timing / Mesas / Alérgenos / Planos */}
+        <div className="flex gap-1 bg-stone-100 rounded-xl p-1 w-fit flex-wrap">
           {[
-            ['timing','Timing',Clock, canViewProtocol],
-            ['mesas','Mesas',Table2, canViewTables],
-            ['alergenos','Alérgenos',AlertTriangle, canViewAllergens]
-          ].map(([id,label,Icon,allowed]) => (
+            ['timing',    'Timing',     Clock,         canViewProtocol ],
+            ['mesas',     'Mesas',      Table2,        canViewTables   ],
+            ['alergenos', 'Alérgenos',  AlertTriangle, canViewAllergens],
+            ['planos',    'Planos',     Map,           canViewFloorPlan],
+          ].map(([id, label, Icon, allowed]) => (
             <button key={id} onClick={() => allowed && setActiveTab(id)}
               disabled={!allowed}
               title={!allowed ? 'Sin permiso' : ''}
@@ -204,7 +247,7 @@ export default function FloorView() {
                 <h3 className="font-semibold text-stone-900">Timing del servicio</h3>
                 <span className="badge bg-emerald-100 text-emerald-700 ml-auto">{protocol.length} momentos</span>
                 <PdfDownloadButton
-                  permissionCode="PROTOCOL_VIEW"
+                  permissionCode="PDF_PROTOCOL"
                   label="PDF protocolo"
                   fileName={`protocolo-${(selectedEvent?.clientName || 'evento').replace(/\s+/g, '-').toLowerCase()}.pdf`}
                   fetchData={async () => {
@@ -242,7 +285,7 @@ export default function FloorView() {
                 <h3 className="font-semibold text-stone-900">Distribución de mesas</h3>
                 <span className="badge bg-emerald-100 text-emerald-700 ml-auto">{tables.length} mesas · {tables.reduce((s,t) => s + (t.guestCount||0), 0)} invitados</span>
                 <PdfDownloadButton
-                  permissionCode="TABLES_VIEW"
+                  permissionCode="PDF_TABLES"
                   label="PDF mesas"
                   fileName={`mesas-${(selectedEvent?.clientName || 'evento').replace(/\s+/g, '-').toLowerCase()}.pdf`}
                   fetchData={async () => {
@@ -270,7 +313,7 @@ export default function FloorView() {
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-semibold text-stone-900">{g.guestName}</p>
                               <div className="flex flex-wrap gap-1 mt-0.5">
-                                {g.diet && <span className={`badge text-[10px] ${DIET_COLORS[g.diet] || 'bg-purple-100 text-purple-700'}`}>{g.diet.replace('_',' ')}</span>}
+                                {g.diet && <span className={`badge text-[10px] ${DIET_COLORS[g.diet] || 'bg-purple-100 text-purple-700'}`}>{g.diet.replace('_', ' ')}</span>}
                                 {g.allergies && g.allergies.split(',').filter(Boolean).map((a, idx) => (
                                   <span key={a} className={`badge text-[10px] ${ALLERGEN_COLORS[idx % ALLERGEN_COLORS.length]}`}>⚠ {ALLERGEN_LABELS[a] || a}</span>
                                 ))}
@@ -293,7 +336,7 @@ export default function FloorView() {
               <div className="flex items-center justify-between mb-5">
                 <div className="flex items-center gap-2"><AlertTriangle size={18} className="text-amber-600" /><h3 className="font-semibold text-stone-900">Necesidades especiales</h3></div>
                 <div className="flex items-center gap-2">
-                  {allergens.length > 0 && <span className="badge bg-amber-100 text-amber-700">{allergens.length} personas</span>}
+                  {allergenGuests.length > 0 && <span className="badge bg-amber-100 text-amber-700">{allergenGuests.length} personas</span>}
                   <PdfDownloadButton
                     permissionCode="PDF_ALLERGENS"
                     label="PDF alérgenos"
@@ -306,8 +349,8 @@ export default function FloorView() {
                   />
                 </div>
               </div>
-              {allergens.length === 0 ? (
-                <div className="text-center py-10"><div className="text-4xl mb-3">✅</div><p className="text-stone-400 text-sm">Sin necesidades especiales registradas</p></div>
+              {allergenGuests.length === 0 ? (
+                <div className="text-center py-10"><div className="text-4xl mb-3">✅</div><p className="text-stone-400 text-sm">{tables.length === 0 ? 'Sin mesas configuradas para este evento' : 'Sin necesidades especiales registradas'}</p></div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {Object.entries(byTable).sort(([a],[b]) => a.localeCompare(b)).map(([table, entries]) => (
@@ -333,6 +376,71 @@ export default function FloorView() {
                     </div>
                   ))}
                 </div>
+              )}
+            </div>
+          )}
+
+          {/* Plano del salón — solo lectura */}
+          {activeTab === 'planos' && (
+            <div className="card lg:col-span-2">
+              <div className="flex items-center gap-2 mb-4">
+                <Map size={18} className="text-emerald-600" />
+                <h3 className="font-semibold text-stone-900">Plano del salón</h3>
+                {canDownloadFloorPlan && planUrl && planMeta && (
+                  <button
+                    onClick={() => {
+                      const a = document.createElement('a');
+                      a.href = planUrl;
+                      a.download = planMeta.filename || 'plano';
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                    }}
+                    className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium border border-stone-200 bg-white text-stone-600 hover:border-emerald-300 hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
+                    title="Descargar plano"
+                  >
+                    <Download size={14} /> Descargar plano
+                  </button>
+                )}
+              </div>
+
+              {!planMeta && (
+                <div className="text-center py-14">
+                  <Map size={36} className="text-stone-300 mx-auto mb-3" />
+                  <p className="text-stone-400 text-sm">No hay plano disponible para este evento.</p>
+                  <p className="text-stone-400 text-xs mt-1">El administrador puede subir el plano desde la gestión del evento.</p>
+                </div>
+              )}
+
+              {planMeta && planUrl && (
+                <>
+                  <div className="flex items-center gap-2 mb-3 text-xs text-stone-500">
+                    <span className="font-medium">{planMeta.filename}</span>
+                    {planMeta.fileSize && <span className="text-stone-400">· {planMeta.fileSize < 1024*1024 ? `${(planMeta.fileSize/1024).toFixed(0)} KB` : `${(planMeta.fileSize/1024/1024).toFixed(1)} MB`}</span>}
+                  </div>
+
+                  {planMeta.contentType?.startsWith('image/') && (
+                    <>
+                      <div className="flex items-center gap-2 mb-3">
+                        <button onClick={() => setZoom(z => Math.max(0.25, z - 0.25))} className="p-1.5 rounded-lg border border-stone-200 hover:bg-stone-100"><ZoomOut size={15} className="text-stone-600" /></button>
+                        <span className="text-xs text-stone-500 w-12 text-center">{Math.round(zoom * 100)}%</span>
+                        <button onClick={() => setZoom(z => Math.min(4, z + 0.25))} className="p-1.5 rounded-lg border border-stone-200 hover:bg-stone-100"><ZoomIn size={15} className="text-stone-600" /></button>
+                        <button onClick={() => setZoom(1)} className="px-2 py-1.5 rounded-lg border border-stone-200 hover:bg-stone-100 text-xs text-stone-500">Reset</button>
+                      </div>
+                      <div className="overflow-auto rounded-2xl border border-stone-200 bg-stone-100 max-h-[65vh]">
+                        <div style={{ width: `${Math.max(100, zoom * 100)}%` }} className="flex items-start justify-center p-4">
+                          <img src={planUrl} alt="Plano del salón" style={{ transform: `scale(${zoom})`, transformOrigin: 'top left', transition: 'transform 0.2s', maxWidth: '100%' }} className="rounded-lg shadow-sm" />
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {planMeta.contentType === 'application/pdf' && (
+                    <div className="rounded-2xl border border-stone-200 overflow-hidden" style={{ height: '65vh' }}>
+                      <iframe src={planUrl} title="Plano PDF" className="w-full h-full" style={{ border: 'none' }} />
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}

@@ -40,21 +40,6 @@ services:
   #     - ./target/eventos-1.0.0.jar:/app/app.jar
   #   command: java -jar /app/app.jar
 
-  # ─── pgAdmin (interfaz gráfica para PostgreSQL) ────────────────────────────
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: eventos_pgadmin
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@salon.com
-      PGADMIN_DEFAULT_PASSWORD: admin123
-    ports:
-      - "5050:80"
-    depends_on:
-      - postgres
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
-
 volumes:
   postgres_data:
-  pgadmin_data:
 

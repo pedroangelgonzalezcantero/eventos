@@ -191,7 +191,7 @@ export default function DjView() {
           <div className="flex items-center gap-2">
             {selectedEvent && canViewProtocol && (
               <PdfDownloadButton
-                permissionCode="PROTOCOL_VIEW"
+                permissionCode="PDF_PROTOCOL"
                 label="Descargar protocolo PDF"
                 variant="primary"
                 fileName={`protocolo-${(selectedEvent?.clientName || 'evento').replace(/\s+/g, '-').toLowerCase()}.pdf`}
@@ -255,7 +255,7 @@ export default function DjView() {
               <span className="text-sm font-medium text-stone-600">{protocol.length} momentos en el protocolo</span>
             </div>
             <PdfDownloadButton
-              permissionCode="PROTOCOL_VIEW"
+              permissionCode="PDF_PROTOCOL"
               label="Descargar protocolo PDF"
               fileName={`protocolo-${(selectedEvent?.clientName || 'evento').replace(/\s+/g, '-').toLowerCase()}.pdf`}
               fetchData={async () => {
