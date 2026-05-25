@@ -17,6 +17,9 @@ WORKDIR /app
 # Copiar el JAR generado
 COPY --from=build /app/target/eventos-1.0.0.jar app.jar
 
+# Forzar perfil de producción siempre en el contenedor
+ENV SPRING_PROFILES_ACTIVE=prod
+
 # Puerto que expone el backend
 EXPOSE 8080
 
