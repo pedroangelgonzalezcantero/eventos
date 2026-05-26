@@ -1,7 +1,7 @@
 package com.salon.eventos.entity;
 
 import lombok.*;
-import javax.persistence.*;
+import jakarta.persistence.*;
 
 @Entity
 @Table(name = "permissions")

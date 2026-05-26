@@ -56,10 +56,10 @@ export default function MetreOperativePdfDoc({ data }) {
           PÁGINA 1 — RESUMEN DEL EVENTO + PROTOCOLO / TIMING
       ════════════════════════════════════════════════════════════ */}
       <Page size="A4" style={styles.page}>
-        <PdfHeader event={event} sectionLabel={SECTION} sectionIcon="📋" />
+        <PdfHeader event={event} sectionLabel={SECTION} sectionIcon="" />
         <View style={styles.body}>
 
-          <SectionBlock title="Resumen del evento" emoji="📅" />
+          <SectionBlock title="Resumen del evento" emoji="" />
 
           {/* Stats */}
           <View style={styles.statsRow}>
@@ -103,7 +103,7 @@ export default function MetreOperativePdfDoc({ data }) {
           </View>
 
           {/* Protocolo / Timing */}
-          <SectionBlock title="Protocolo del evento · Timing" emoji="🎵" color="#1d4ed8" bgColor="#eff6ff" />
+          <SectionBlock title="Protocolo del evento · Timing" emoji="" color="#1d4ed8" bgColor="#eff6ff" />
 
           {protocol.length === 0 ? (
             <View style={[styles.card, { alignItems: 'center', paddingVertical: 16 }]}>
@@ -131,10 +131,10 @@ export default function MetreOperativePdfDoc({ data }) {
                     {item.description}
                   </Text>
                   {item.involvedPerson ? (
-                    <Text style={{ fontSize: 8.5, color: COLORS.medium }}>👤 {item.involvedPerson}</Text>
+                    <Text style={{ fontSize: 8.5, color: COLORS.medium }}> {item.involvedPerson}</Text>
                   ) : null}
                   {item.youtubeLink ? (
-                    <Text style={{ fontSize: 8.5, color: '#2563eb', marginTop: 2 }}>🎵 {item.youtubeLink}</Text>
+                    <Text style={{ fontSize: 8.5, color: '#2563eb', marginTop: 2 }}> {item.youtubeLink}</Text>
                   ) : null}
                   {item.observations ? (
                     <Text style={{ fontSize: 8.5, color: COLORS.light, fontStyle: 'italic', marginTop: 2 }}>{item.observations}</Text>
@@ -151,9 +151,9 @@ export default function MetreOperativePdfDoc({ data }) {
           PÁGINA 2 — MESAS E INVITADOS
       ════════════════════════════════════════════════════════════ */}
       <Page size="A4" style={styles.page}>
-        <PdfHeader event={event} sectionLabel={SECTION} sectionIcon="📋" />
+        <PdfHeader event={event} sectionLabel={SECTION} sectionIcon="" />
         <View style={styles.body}>
-          <SectionBlock title="Distribución de mesas e invitados" emoji="🪑" color="#166534" bgColor="#f0fdf4" />
+          <SectionBlock title="Distribución de mesas e invitados" emoji="" color="#166534" bgColor="#f0fdf4" />
 
           {/* Índice rápido de mesas */}
           <View style={[styles.card, { marginBottom: 14 }]}>
@@ -196,7 +196,7 @@ export default function MetreOperativePdfDoc({ data }) {
                   )}
                 </View>
                 {table.notes ? (
-                  <Text style={[styles.cardText, { fontStyle: 'italic', marginBottom: 6, color: COLORS.medium }]}>📝 {table.notes}</Text>
+                  <Text style={[styles.cardText, { fontStyle: 'italic', marginBottom: 6, color: COLORS.medium }]}> {table.notes}</Text>
                 ) : null}
 
                 {/* Invitados */}
@@ -245,7 +245,7 @@ export default function MetreOperativePdfDoc({ data }) {
           PÁGINA 3 — ALERGIAS · VISTA OPERATIVA DE SERVICIO
       ════════════════════════════════════════════════════════════ */}
       <Page size="A4" style={styles.page}>
-        <PdfHeader event={event} sectionLabel={SECTION} sectionIcon="📋" />
+        <PdfHeader event={event} sectionLabel={SECTION} sectionIcon="" />
         <View style={styles.body}>
           <SectionBlock title="Necesidades especiales · Vista rápida de servicio" emoji="⚠️" color={COLORS.amber} bgColor={COLORS.amberBg} />
 
@@ -266,7 +266,7 @@ export default function MetreOperativePdfDoc({ data }) {
             Object.entries(allergensByTable).sort(([a], [b]) => a.localeCompare(b)).map(([tableName, entries]) => (
               <View key={tableName} style={{ backgroundColor: '#fffbeb', border: `1.5pt solid #fcd34d`, borderRadius: 6, padding: 10, marginBottom: 8 }} wrap={false}>
                 <Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 10, color: '#92400e', marginBottom: 6, paddingBottom: 4, borderBottom: `1pt solid #fcd34d` }}>
-                  📍 {tableName}  ·  {entries.length} persona{entries.length !== 1 ? 's' : ''}
+                   {tableName}  ·  {entries.length} persona{entries.length !== 1 ? 's' : ''}
                 </Text>
                 {entries.map((e, ei) => (
                   <View key={e.id || ei} style={{ paddingVertical: 5, borderBottom: ei < entries.length - 1 ? `1pt solid #fde68a` : 'none' }}>
@@ -274,7 +274,7 @@ export default function MetreOperativePdfDoc({ data }) {
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 3 }}>
                       {e.diet ? (
                         <View style={[styles.badge, { backgroundColor: '#f3e8ff', paddingHorizontal: 7, paddingVertical: 3 }]}>
-                          <Text style={[styles.badgeText, { color: '#6b21a8', fontSize: 9 }]}>🥗 {DIET_LABELS[e.diet] || e.diet}</Text>
+                          <Text style={[styles.badgeText, { color: '#6b21a8', fontSize: 9 }]}> {DIET_LABELS[e.diet] || e.diet}</Text>
                         </View>
                       ) : null}
                       {e.allergies ? e.allergies.split(',').filter(Boolean).map(a => (
@@ -284,7 +284,7 @@ export default function MetreOperativePdfDoc({ data }) {
                       )) : null}
                     </View>
                     {e.observations ? (
-                      <Text style={{ fontSize: 8, color: COLORS.medium, fontStyle: 'italic', marginTop: 3 }}>💬 {e.observations}</Text>
+                      <Text style={{ fontSize: 8, color: COLORS.medium, fontStyle: 'italic', marginTop: 3 }}> {e.observations}</Text>
                     ) : null}
                   </View>
                 ))}
@@ -300,9 +300,9 @@ export default function MetreOperativePdfDoc({ data }) {
       ════════════════════════════════════════════════════════════ */}
       {floorPlanBase64 && floorPlanIsImage && (
         <Page size="A4" style={styles.page}>
-          <PdfHeader event={event} sectionLabel={SECTION} sectionIcon="📋" />
+          <PdfHeader event={event} sectionLabel={SECTION} sectionIcon="" />
           <View style={styles.body}>
-            <SectionBlock title="Plano del salón" emoji="🗺️" color="#166534" bgColor="#f0fdf4" />
+            <SectionBlock title="Plano del salón" emoji="️" color="#166534" bgColor="#f0fdf4" />
             {floorPlanFilename && (
               <Text style={{ fontSize: 8, color: COLORS.light, marginBottom: 8 }}>{floorPlanFilename}</Text>
             )}

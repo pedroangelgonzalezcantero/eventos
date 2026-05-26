@@ -46,7 +46,7 @@ export default function KitchenView() {
   if (events.length === 0) return (
     <Layout>
       <div className="card text-center py-20">
-        <span className="text-5xl mb-4 block">🍽️</span>
+        <span className="text-5xl mb-4 block">️</span>
         <h2 className="text-xl font-bold text-stone-800 mb-2">Sin eventos asignados</h2>
         <p className="text-stone-500">Cuando te asignen a un evento, aparecerá aquí.</p>
       </div>
@@ -57,7 +57,7 @@ export default function KitchenView() {
     <Layout>
       <div className="space-y-6">
         <div className="flex items-center gap-3">
-          <span className="text-3xl">🍽️</span>
+          <span className="text-3xl">️</span>
           <div className="flex-1">
             <h1 className="text-2xl font-bold text-gray-900">Vista Cocina</h1>
             <p className="text-gray-500 text-sm">Menús y alérgenos por evento</p>
@@ -95,13 +95,13 @@ export default function KitchenView() {
           <>
             <div className="card bg-orange-50 border-orange-200">
               <h2 className="text-lg font-bold text-orange-900">{selectedEvent.clientName} · {selectedEvent.typeLabel}</h2>
-              <p className="text-orange-700">📅 {new Date(selectedEvent.eventDate).toLocaleDateString('es-ES',{weekday:'long',year:'numeric',month:'long',day:'numeric'})} · 👥 {selectedEvent.estimatedGuests} invitados</p>
+              <p className="text-orange-700"> {new Date(selectedEvent.eventDate).toLocaleDateString('es-ES',{weekday:'long',year:'numeric',month:'long',day:'numeric'})} ·  {selectedEvent.estimatedGuests} invitados</p>
             </div>
 
             {/* Menu seleccionado */}
             <div className="card">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-gray-800">🍽️ Menú seleccionado</h3>
+                <h3 className="font-semibold text-gray-800">️ Menú seleccionado</h3>
                 <PdfDownloadButton
                   permissionCode="PDF_MENUS"
                   label="PDF menús"
@@ -161,7 +161,7 @@ export default function KitchenView() {
                 <div className="space-y-4">
                   {Object.entries(byTable).sort(([a],[b])=>a.localeCompare(b)).map(([table, entries]) => (
                     <div key={table} className="border rounded-xl overflow-hidden">
-                      <div className="bg-orange-100 px-4 py-2 font-semibold text-orange-800">📍 {table}</div>
+                      <div className="bg-orange-100 px-4 py-2 font-semibold text-orange-800"> {table}</div>
                       <table className="w-full text-sm">
                         <thead className="bg-gray-50">
                           <tr>

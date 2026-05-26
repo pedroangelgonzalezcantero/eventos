@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
 import Layout from '../../components/Layout';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Music2, Layers, ChefHat, UserPlus, Trash2, Edit2, X, AlertTriangle, Table2, Map, ZoomIn, ZoomOut, Upload, RotateCcw, Download } from 'lucide-react';
+import { ArrowLeft, Music2, Layers, ChefHat, UserPlus, Trash2, Edit2, X, AlertTriangle, Table2, Map, ZoomIn, ZoomOut, Upload, RotateCcw, Download, Plus, Save, ClipboardList, FileSpreadsheet, CheckCircle2, AlertCircle, Pencil } from 'lucide-react';
+import PersonaAutocomplete from '../../components/PersonaAutocomplete';
 import PdfDownloadButton from '../../components/PdfDownloadButton';
 import ProtocolPdfDoc  from '../../components/pdf/ProtocolPdfDoc';
 import TablesPdfDoc    from '../../components/pdf/TablesPdfDoc';
@@ -11,17 +12,19 @@ import AllergensPdfDoc from '../../components/pdf/AllergensPdfDoc';
 import MenusPdfDoc     from '../../components/pdf/MenusPdfDoc';
 import InvoicePdfDoc   from '../../components/pdf/InvoicePdfDoc';
 import { useAuth } from '../../context/AuthContext';
+import FloorEditor from '../../components/floorEditor/FloorEditor';
 
 const TABS = [
-  { id: 'info',         label: 'Información' },
-  { id: 'asignaciones', label: 'Personal'     },
-  { id: 'menus',        label: 'Menús'        },
-  { id: 'allergens',    label: 'Alérgenos'    },
-  { id: 'protocol',     label: 'Protocolo'    },
-  { id: 'mesas',        label: 'Mesas'        },
-  { id: 'planos',       label: 'Planos'       },
-  { id: 'invoice',      label: 'Facturación'  },
-  { id: 'reminders',    label: 'Recordatorios'},
+  { id: 'info',         label: 'Información'  },
+  { id: 'asignaciones', label: 'Personal'      },
+  { id: 'rangos',       label: 'Rangos'        },
+  { id: 'menus',        label: 'Menús'         },
+  { id: 'allergens',    label: 'Alérgenos'     },
+  { id: 'protocol',     label: 'Protocolo'     },
+  { id: 'mesas',        label: 'Mesas'         },
+  { id: 'planos',       label: 'Planos'        },
+  { id: 'invoice',      label: 'Facturación'   },
+  { id: 'reminders',    label: 'Recordatorios' },
 ];
 
 const STATUS_OPTIONS = ['BORRADOR','PENDIENTE_INFO','EN_CURSO','CONFIRMADO','COMPLETADO','CANCELADO'];
@@ -100,9 +103,9 @@ export default function EventDetail() {
         {/* Completitud */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { ok: event.menuConfirmed,      label: 'Menú confirmado',       icon: '🍽️' },
+            { ok: event.menuConfirmed,      label: 'Menú confirmado',       icon: '️' },
             { ok: event.allergensCompleted, label: 'Alérgenos registrados', icon: '⚠️' },
-            { ok: event.protocolCompleted,  label: 'Protocolo completo',    icon: '📋' },
+            { ok: event.protocolCompleted,  label: 'Protocolo completo',    icon: '' },
             { ok: event.budgetSigned,       label: 'Presupuesto firmado',   icon: '✍️' },
           ].map(item => (
             <div key={item.label} className={`card p-4 text-center ${item.ok ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}>
@@ -131,6 +134,7 @@ export default function EventDetail() {
         {/* Tab content */}
         {tab === 'info'         && <InfoTab event={event} />}
         {tab === 'asignaciones' && <AsignacionesTab eventId={id} assignments={assignments} staff={staff} reload={loadAssignments} />}
+        {tab === 'rangos'       && <RangosTab eventId={id} event={event} />}
         {tab === 'menus'        && <MenusTab eventId={id} event={event} menus={menus} reload={loadMenus} />}
         {tab === 'allergens'    && <AllergensTab eventId={id} event={event} tables={tables} reload={() => { loadTables(); loadEvent(); }} onGoToMesas={() => setTab('mesas')} />}
         {tab === 'protocol'     && <ProtocolTab eventId={id} event={event} items={protocol} reload={() => { loadProtocol(); loadEvent(); }} />}
@@ -610,7 +614,7 @@ function AllergensTab({ eventId, event, tables, reload, onGoToMesas }) {
         return (
           <div key={table.id} className="card border-amber-100">
             <div className="flex items-center gap-2 mb-3">
-              <span className="text-sm font-bold text-stone-800">🪑 {table.name}</span>
+              <span className="text-sm font-bold text-stone-800"> {table.name}</span>
               <span className="badge bg-amber-100 text-amber-700 text-[10px]">
                 ⚠ {restricted.length} restricción{restricted.length !== 1 ? 'es' : ''}
               </span>
@@ -779,8 +783,8 @@ function ProtocolTab({ eventId, event, items, reload }) {
                 <div>
                   {item.eventTime && <span className="text-sm font-semibold text-rose-600">{item.eventTime} · </span>}
                   <span className="font-medium">{item.description}</span>
-                  {item.involvedPerson && <p className="text-sm text-stone-500 mt-1">👤 {item.involvedPerson}</p>}
-                  {item.youtubeLink && <a href={item.youtubeLink} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline mt-1 block">🎵 {item.youtubeLink}</a>}
+                  {item.involvedPerson && <p className="text-sm text-stone-500 mt-1"> {item.involvedPerson}</p>}
+                  {item.youtubeLink && <a href={item.youtubeLink} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline mt-1 block"> {item.youtubeLink}</a>}
                   {item.observations && <p className="text-sm text-stone-500 mt-1 italic">{item.observations}</p>}
                 </div>
                 <button onClick={() => handleDelete(item.id)} className="text-red-400 hover:text-red-600 text-sm ml-2">✕</button>
@@ -909,9 +913,9 @@ function RemindersTab({ event, onSend }) {
         <h3 className="font-semibold mb-3">Enviar recordatorio manual</h3>
         <p className="text-sm text-stone-500 mb-4">Se enviará un recordatorio al cliente para que complete la información pendiente.</p>
         <div className="flex flex-wrap gap-3">
-          <button onClick={() => onSend('EMAIL')}    className="btn-secondary text-sm">📧 Enviar por Email</button>
-          <button onClick={() => onSend('SMS')}      className="btn-secondary text-sm">📱 Enviar por SMS</button>
-          <button onClick={() => onSend('WHATSAPP')} className="btn-secondary text-sm">💬 Enviar por WhatsApp</button>
+          <button onClick={() => onSend('EMAIL')}    className="btn-secondary text-sm"> Enviar por Email</button>
+          <button onClick={() => onSend('SMS')}      className="btn-secondary text-sm"> Enviar por SMS</button>
+          <button onClick={() => onSend('WHATSAPP')} className="btn-secondary text-sm"> Enviar por WhatsApp</button>
         </div>
       </div>
     </div>
@@ -1208,8 +1212,510 @@ function MesasAdminTab({ eventId, event, tables, reload }) {
   );
 }
 
+// ── Rangos (asignación de trabajadores por mesa) ───────────────────────────
+
+/**
+ * Parser dinámico de Excel para rangos de trabajadores.
+ *
+ * Soporta DOS formatos:
+ *
+ * Formato A (nuevo) — una o varias columnas, empieza en col A:
+ *   Fila 1: "BODA PEDRO Y MARI"   ← nombre del evento, se ignora
+ *   Fila 2: ATENEA    HORA         ← cabecera de salón + labels de columna
+ *   Fila 3: PEDRO ANGEL  5 Y 6  21H
+ *   Fila 4: JAVIER LOPEZ  LIBRE  25H  BARRA
+ *
+ * Formato B (original) — 2 bloques lado a lado, cols D-F y H-K:
+ *   ATENEA (col D)  …  VENUS (col H)
+ *   NEREA  6 Y 7   …  XENIA  2 Y AYUDA COMPAÑEROS
+ *
+ * Algoritmo:
+ *  - NO asume columnas fijas; detecta bloques por GAPS en el índice de columna
+ *  - Separa celdas que son "etiquetas de columna" (HORA, NOMBRE...) del rango real
+ *  - Detecta cabeceras de salón: bloques sin datos de mesas tras filtrar etiquetas
+ */
+function parseRangosFromSheet(sheet, XLSX) {
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+  const s = v => (v === null || v === undefined ? '' : String(v).trim());
+
+  const DAY_NAMES     = new Set(['LUNES','MARTES','MIERCOLES','MIÉRCOLES','JUEVES','VIERNES','SABADO','SÁBADO','DOMINGO']);
+  const COLUMN_LABELS = new Set(['HORA','NOMBRE','MESA','MESAS','PUESTO','RANGO','LUGAR','TIME','TABLE','TABLES']);
+
+  const entries    = [];
+  const mesaByKey  = {}; // sectionKey → nombre del salón/sección actual
+
+  for (const row of rows) {
+    // 1. Recoger celdas no vacías con su índice de columna
+    const cells = [];
+    for (let c = 0; c < row.length; c++) {
+      const v = s(row[c]);
+      if (v) cells.push({ col: c, val: v });
+    }
+    if (!cells.length) continue;
+
+    // 2. Agrupar en bloques: gap > 2 columnas vacías O cambio de sección = nuevo bloque
+    const blocks = [[cells[0]]];
+    for (let i = 1; i < cells.length; i++) {
+      const prevSec = Math.floor(cells[i - 1].col / 6);
+      const currSec = Math.floor(cells[i].col / 6);
+      const gap     = cells[i].col - cells[i - 1].col;
+      if (currSec !== prevSec || gap > 2) {
+        blocks.push([cells[i]]);
+      } else {
+        blocks[blocks.length - 1].push(cells[i]);
+      }
+    }
+
+    // 3. Procesar cada bloque
+    for (const block of blocks) {
+      const anchorCol  = block[0].col;
+      // Sección: cols 0-5 → key 0, cols 6-11 → key 1, etc.
+      const sectionKey = Math.floor(anchorCol / 6);
+      const name       = block[0].val;
+
+      // Saltar días de la semana y etiquetas de columna usadas como nombre
+      if (DAY_NAMES.has(name.toUpperCase()) || COLUMN_LABELS.has(name.toUpperCase())) continue;
+
+      // Rango = valores tras el nombre, excluyendo etiquetas de columna (HORA, etc.)
+      const rangoArr = block.slice(1)
+        .map(c => c.val)
+        .filter(v => !COLUMN_LABELS.has(v.toUpperCase()));
+      const rango = rangoArr.join(' · ').trim();
+
+      if (!rango) {
+        // Sin datos de mesas reales → cabecera de salón/sección
+        mesaByKey[sectionKey] = name;
+      } else {
+        // Fila de trabajador
+        if (name.length > 1) {
+          entries.push({ nombre: name, mesa: mesaByKey[sectionKey] || '', rango });
+        }
+      }
+    }
+  }
+
+  return entries;
+}
+
+function RangosTab({ eventId, event }) {
+  const [rangos, setRangos]             = useState([]);
+  const [loading, setLoading]           = useState(true);
+  const [newRow, setNewRow]             = useState(null);
+  const [editRow, setEditRow]           = useState(null);
+  const [saving, setSaving]             = useState(false);
+
+  // Import Excel state
+  const fileRef                         = useRef(null);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importPreview, setImportPreview] = useState(null); // null | { entries: [] }
+  const [importing, setImporting]       = useState(false);
+
+  const loadRangos = async () => {
+    setLoading(true);
+    try { const r = await api.get(`/events/${eventId}/rangos`); setRangos(r.data); }
+    catch { toast.error('Error cargando rangos'); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { loadRangos(); }, [eventId]);
+
+  // ── Añadir / editar manual ────────────────────────────────────────────────
+  const handleAddRow = () => { setNewRow({ personaObj: null, mesa: '', rango: '' }); setEditRow(null); };
+
+  const handleSaveNew = async () => {
+    if (!newRow.personaObj) { toast.error('Selecciona una persona'); return; }
+    setSaving(true);
+    try {
+      await api.post(`/events/${eventId}/rangos`, { personaId: newRow.personaObj.id, mesa: newRow.mesa, rango: newRow.rango });
+      toast.success('Rango añadido y alta registrada ✓');
+      setNewRow(null); loadRangos();
+    } catch (e) { toast.error(e?.response?.data?.message || 'Error al guardar');
+    } finally { setSaving(false); }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editRow.personaObj) { toast.error('Selecciona una persona'); return; }
+    setSaving(true);
+    try {
+      await api.put(`/events/${eventId}/rangos/${editRow.id}`, { personaId: editRow.personaObj.id, mesa: editRow.mesa, rango: editRow.rango });
+      toast.success('Rango actualizado ✓');
+      setEditRow(null); loadRangos();
+    } catch (e) { toast.error(e?.response?.data?.message || 'Error al actualizar');
+    } finally { setSaving(false); }
+  };
+
+  const handleDelete = async (rangoId) => {
+    if (!confirm('¿Eliminar este rango?')) return;
+    try { await api.delete(`/events/${eventId}/rangos/${rangoId}`); toast.success('Rango eliminado'); loadRangos(); }
+    catch { toast.error('Error al eliminar'); }
+  };
+
+  const startEdit = (r) => {
+    setEditRow({ id: r.id, personaObj: { id: r.personaId, nombre: r.personaNombre, apellidos: r.personaApellidos, dni: r.personaDni, puesto: r.personaPuesto }, mesa: r.mesa || '', rango: r.rango || '' });
+    setNewRow(null);
+  };
+
+  // ── Import Excel ──────────────────────────────────────────────────────────
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setImportLoading(true);
+    try {
+      const XLSX = await import('xlsx');
+      const buffer = await file.arrayBuffer();
+      const wb    = XLSX.read(buffer, { type: 'array' });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const raw   = parseRangosFromSheet(sheet, XLSX);
+
+      if (raw.length === 0) { toast.error('No se detectaron trabajadores en el Excel'); return; }
+
+      // Buscar persona para cada nombre detectado
+      const withPersona = await Promise.all(raw.map(async (entry) => {
+        try {
+          const res = await api.get('/personas/search', { params: { q: entry.nombre } });
+          const list = res.data || [];
+          // Preferir coincidencia exacta de nombre completo
+          const exact = list.find(p =>
+            p.nombreCompleto?.toLowerCase() === entry.nombre.toLowerCase() ||
+            p.nombre?.toLowerCase()         === entry.nombre.toLowerCase() ||
+            `${p.apellidos} ${p.nombre}`.toLowerCase() === entry.nombre.toLowerCase()
+          );
+          const persona = exact || (list.length === 1 ? list[0] : null);
+          return { ...entry, persona, candidatos: list };
+        } catch { return { ...entry, persona: null, candidatos: [] }; }
+      }));
+
+      setImportPreview({ entries: withPersona });
+    } catch (err) {
+      toast.error('Error al leer el Excel: ' + (err.message || 'formato no reconocido'));
+    } finally { setImportLoading(false); }
+  };
+
+  const handleImport = async () => {
+    if (!importPreview) return;
+    const toImport = importPreview.entries.filter(e => e.persona);
+    if (toImport.length === 0) { toast.error('Ningún trabajador tiene persona asignada'); return; }
+    setImporting(true);
+    try {
+      await api.post(`/events/${eventId}/rangos/batch`,
+        toImport.map(e => ({ personaId: e.persona.id, mesa: e.mesa, rango: e.rango }))
+      );
+      const skipped = importPreview.entries.filter(e => !e.persona).length;
+      toast.success(`✅ ${toImport.length} rangos importados${skipped > 0 ? ` · ⚠️ ${skipped} omitidos (sin persona en BD)` : ''}`);
+      setImportPreview(null);
+      loadRangos();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Error al importar');
+    } finally { setImporting(false); }
+  };
+
+  // Cambio de persona candidato en el preview
+  const setPreviewPersona = (idx, persona) => {
+    setImportPreview(prev => {
+      const entries = [...prev.entries];
+      entries[idx] = { ...entries[idx], persona };
+      return { ...prev, entries };
+    });
+  };
+
+  // ── Export Excel ──────────────────────────────────────────────────────────
+  const handleExport = async () => {
+    const XLSX = await import('xlsx');
+
+    // Agrupar por mesa para recrear el formato de bloques
+    const byMesa = rangos.reduce((acc, r) => {
+      const k = r.mesa || '(sin salón)';
+      if (!acc[k]) acc[k] = [];
+      acc[k].push(r);
+      return acc;
+    }, {});
+
+    // Hoja 1: tabla simple con información de altas
+    const altasRows = [
+      ['EVENTO', event?.clientName || `Evento ${eventId}`],
+      ['FECHA',  event?.eventDate  || ''],
+      [],
+      ['SALÓN/MESA', 'NOMBRE', 'APELLIDOS', 'DNI', 'S.SOCIAL', 'RANGO/MESAS'],
+      ...rangos.map(r => [r.mesa || '', r.personaNombre || '', r.personaApellidos || '', r.personaDni || '', /* s.social no está en RangoDto, mostramos vacío */ '', r.rango || ''])
+    ];
+    const wsAltas = XLSX.utils.aoa_to_sheet(altasRows);
+    wsAltas['!cols'] = [{ wch: 20 }, { wch: 16 }, { wch: 18 }, { wch: 12 }, { wch: 14 }, { wch: 30 }];
+
+    // Hoja 2: formato agrupado por salón (similar al original)
+    const grupoRows = [['SALÓN', 'TRABAJADOR', 'RANGO/MESAS'], []];
+    Object.entries(byMesa).forEach(([mesa, items]) => {
+      grupoRows.push([mesa.toUpperCase(), '', '']);
+      items.forEach(r => grupoRows.push(['', `${r.personaNombre} ${r.personaApellidos}`, r.rango || '']));
+      grupoRows.push([]);
+    });
+    const wsGrupo = XLSX.utils.aoa_to_sheet(grupoRows);
+    wsGrupo['!cols'] = [{ wch: 22 }, { wch: 24 }, { wch: 32 }];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, wsAltas,  'Altas asesoría');
+    XLSX.utils.book_append_sheet(wb, wsGrupo,  'Por salón');
+
+    const safeName = (event?.clientName || `evento-${eventId}`).replace(/\s+/g, '-').toLowerCase();
+    XLSX.writeFile(wb, `rangos-${safeName}.xlsx`);
+    toast.success('Excel descargado ✓');
+  };
+
+  // ── Render ────────────────────────────────────────────────────────────────
+  if (loading) return (
+    <div className="card flex items-center justify-center py-16">
+      <div className="w-8 h-8 border-2 border-rose-200 border-t-rose-600 rounded-full animate-spin" />
+    </div>
+  );
+
+  const matched  = importPreview ? importPreview.entries.filter(e => e.persona).length  : 0;
+  const unmatched = importPreview ? importPreview.entries.filter(e => !e.persona).length : 0;
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <h3 className="font-semibold text-stone-800 flex items-center gap-2">
+            <ClipboardList size={18} className="text-stone-500" /> Rangos de trabajadores
+          </h3>
+          <p className="text-xs text-stone-500 mt-0.5">
+            Asigna trabajadores a mesas. El alta en asesoría se genera automáticamente.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Export */}
+          {rangos.length > 0 && (
+            <button onClick={handleExport}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium border border-stone-200 bg-white text-stone-600 hover:border-emerald-300 hover:text-emerald-700 hover:bg-emerald-50 transition-colors">
+              <Download size={14} /> Exportar Excel
+            </button>
+          )}
+          {/* Import */}
+          <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleFileChange} />
+          <button onClick={() => fileRef.current?.click()} disabled={importLoading}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium border border-stone-200 bg-white text-stone-600 hover:border-blue-300 hover:text-blue-700 hover:bg-blue-50 transition-colors disabled:opacity-50">
+            {importLoading
+              ? <><span className="w-3.5 h-3.5 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin" /> Leyendo...</>
+              : <><FileSpreadsheet size={14} /> Importar Excel</>}
+          </button>
+          {/* Añadir manual */}
+          <button onClick={handleAddRow} className="btn-primary text-sm inline-flex items-center gap-1.5">
+            <Plus size={15} /> Añadir rango
+          </button>
+        </div>
+      </div>
+
+      {/* ── Modal Preview Import ─────────────────────────────────────────── */}
+      {importPreview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+            {/* Header modal */}
+            <div className="px-6 py-4 border-b border-stone-100 flex items-center justify-between flex-none">
+              <div>
+                <h3 className="font-bold text-stone-900 text-lg flex items-center gap-2">
+                  <FileSpreadsheet size={20} className="text-blue-500" /> Previsualización de importación
+                </h3>
+                <p className="text-sm text-stone-500 mt-0.5">
+                  {importPreview.entries.length} trabajadores detectados ·
+                  <span className="text-emerald-600 font-medium"> {matched} con persona ✓</span>
+                  {unmatched > 0 && <span className="text-amber-600 font-medium"> · {unmatched} sin persona (se omitirán)</span>}
+                </p>
+              </div>
+              <button onClick={() => setImportPreview(null)} className="text-stone-400 hover:text-stone-600 p-1">
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Tabla preview */}
+            <div className="overflow-y-auto flex-1">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-stone-50/95 backdrop-blur-sm">
+                  <tr className="border-b border-stone-200">
+                    <th className="text-left px-4 py-2.5 font-medium text-stone-500 w-6">·</th>
+                    <th className="text-left px-4 py-2.5 font-medium text-stone-500">Detectado en Excel</th>
+                    <th className="text-left px-4 py-2.5 font-medium text-stone-500">Persona en BD</th>
+                    <th className="text-left px-4 py-2.5 font-medium text-stone-500">Salón</th>
+                    <th className="text-left px-4 py-2.5 font-medium text-stone-500">Rango/Mesas</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {importPreview.entries.map((entry, idx) => (
+                    <tr key={idx} className={`border-b border-stone-100 last:border-0 ${entry.persona ? 'bg-white' : 'bg-amber-50/40'}`}>
+                      <td className="px-4 py-2 text-center">
+                        {entry.persona
+                          ? <CheckCircle2 size={15} className="text-emerald-500 mx-auto" />
+                          : <AlertCircle  size={15} className="text-amber-500 mx-auto" />}
+                      </td>
+                      <td className="px-4 py-2 font-medium text-stone-800">{entry.nombre}</td>
+                      <td className="px-4 py-2">
+                        {entry.candidatos.length > 1 ? (
+                          /* Más de un candidato → selector */
+                          <select
+                            className="input text-xs py-1"
+                            value={entry.persona?.id || ''}
+                            onChange={e => {
+                              const p = entry.candidatos.find(c => c.id === parseInt(e.target.value));
+                              setPreviewPersona(idx, p || null);
+                            }}
+                          >
+                            <option value="">— seleccionar —</option>
+                            {entry.candidatos.map(p => (
+                              <option key={p.id} value={p.id}>{p.nombreCompleto} ({p.dni})</option>
+                            ))}
+                          </select>
+                        ) : entry.persona ? (
+                          <span className="text-emerald-700 text-xs font-medium">
+                            {entry.persona.nombreCompleto} <span className="text-stone-400 font-normal">({entry.persona.dni})</span>
+                          </span>
+                        ) : (
+                          <span className="text-amber-600 text-xs italic">
+                            No encontrado — crear en Trabajadores
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2 text-stone-600 text-xs">{entry.mesa || <span className="text-stone-300">—</span>}</td>
+                      <td className="px-4 py-2 text-stone-600 text-xs">{entry.rango || <span className="text-stone-300">—</span>}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Footer modal */}
+            <div className="px-6 py-4 border-t border-stone-100 flex items-center justify-between flex-none gap-3">
+              <p className="text-xs text-stone-400">
+                Los trabajadores sin persona se omiten. Créalos primero en <strong>Trabajadores</strong>.
+              </p>
+              <div className="flex gap-2 flex-none">
+                <button onClick={() => setImportPreview(null)} className="btn-secondary text-sm">Cancelar</button>
+                <button onClick={handleImport} disabled={importing || matched === 0}
+                  className="btn-primary text-sm disabled:opacity-50 inline-flex items-center gap-1.5">
+                  {importing
+                    ? <><span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Importando...</>
+                    : <><Download size={14} /> Importar {matched} rango{matched !== 1 ? 's' : ''}</>}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Tabla de rangos ──────────────────────────────────────────────── */}
+      <div className="card overflow-x-auto p-0">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-stone-100 bg-stone-50/70">
+              <th className="text-left px-4 py-3 font-medium text-stone-600 w-[38%]">Persona</th>
+              <th className="text-left px-4 py-3 font-medium text-stone-600 w-[22%]">Salón / Mesa</th>
+              <th className="text-left px-4 py-3 font-medium text-stone-600 w-[30%]">Rango / Mesas</th>
+              <th className="px-4 py-3 w-[10%]"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {/* Fila nueva */}
+            {newRow && (
+              <tr className="border-b border-rose-100 bg-rose-50/30">
+                <td className="px-4 py-2">
+                  <PersonaAutocomplete value={newRow.personaObj} onChange={p => setNewRow(r => ({ ...r, personaObj: p }))} placeholder="Buscar persona..." />
+                </td>
+                <td className="px-4 py-2">
+                  <input className="input text-sm" placeholder="ATENEA, VENUS…" value={newRow.mesa}
+                    onChange={e => setNewRow(r => ({ ...r, mesa: e.target.value }))} />
+                </td>
+                <td className="px-4 py-2">
+                  <input className="input text-sm" placeholder="1 Y 2, LIBRE y especiales…" value={newRow.rango}
+                    onChange={e => setNewRow(r => ({ ...r, rango: e.target.value }))} />
+                </td>
+                <td className="px-4 py-2">
+                  <div className="flex items-center gap-1">
+                    <button onClick={handleSaveNew} disabled={saving}
+                      className="p-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white" title="Guardar">
+                      <Save size={13} />
+                    </button>
+                    <button onClick={() => setNewRow(null)} className="p-1.5 rounded-lg text-stone-400 hover:text-stone-600 hover:bg-stone-100" title="Cancelar">
+                      <X size={13} />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            )}
+
+            {/* Filas existentes */}
+            {rangos.map(r => {
+              const isEditing = editRow?.id === r.id;
+              return (
+                <tr key={r.id} className={`border-b border-stone-100 last:border-0 transition-colors group ${isEditing ? 'bg-amber-50/40' : 'hover:bg-stone-50'}`}>
+                  <td className="px-4 py-2">
+                    {isEditing
+                      ? <PersonaAutocomplete value={editRow.personaObj} onChange={p => setEditRow(ev => ({ ...ev, personaObj: p }))} />
+                      : <div>
+                          <p className="font-medium text-stone-900">{r.personaNombreCompleto}</p>
+                          <p className="text-[11px] text-stone-400">DNI: {r.personaDni}{r.personaPuesto ? ` · ${r.personaPuesto}` : ''}</p>
+                        </div>}
+                  </td>
+                  <td className="px-4 py-2">
+                    {isEditing
+                      ? <input className="input text-sm" value={editRow.mesa} onChange={e => setEditRow(ev => ({ ...ev, mesa: e.target.value }))} />
+                      : <span className="text-stone-700 text-xs font-medium uppercase tracking-wide">{r.mesa || <span className="text-stone-300 italic normal-case font-normal">—</span>}</span>}
+                  </td>
+                  <td className="px-4 py-2">
+                    {isEditing
+                      ? <input className="input text-sm" value={editRow.rango} onChange={e => setEditRow(ev => ({ ...ev, rango: e.target.value }))} />
+                      : <span className="text-stone-700">{r.rango || <span className="text-stone-300 italic">—</span>}</span>}
+                  </td>
+                  <td className="px-4 py-2">
+                    {isEditing
+                      ? <div className="flex items-center gap-1">
+                          <button onClick={handleSaveEdit} disabled={saving}
+                            className="p-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white" title="Guardar">
+                            <Save size={13} />
+                          </button>
+                          <button onClick={() => setEditRow(null)} className="p-1.5 rounded-lg text-stone-400 hover:text-stone-600 hover:bg-stone-100" title="Cancelar">
+                            <X size={13} />
+                          </button>
+                        </div>
+                      : <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => startEdit(r)}
+                            className="p-1.5 rounded-lg text-stone-400 hover:text-blue-600 hover:bg-blue-50" title="Editar">
+                            <Edit2 size={13} />
+                          </button>
+                          <button onClick={() => handleDelete(r.id)}
+                            className="p-1.5 rounded-lg text-stone-400 hover:text-red-600 hover:bg-red-50" title="Eliminar">
+                            <Trash2 size={13} />
+                          </button>
+                        </div>}
+                  </td>
+                </tr>
+              );
+            })}
+
+            {rangos.length === 0 && !newRow && (
+              <tr>
+                <td colSpan={4} className="px-4 py-14 text-center text-stone-400 text-sm">
+                  <ClipboardList size={32} className="mx-auto mb-3 text-stone-200" />
+                  Sin rangos asignados aún.<br />
+                  <span className="text-xs">Usa <strong>Importar Excel</strong> o <strong>Añadir rango</strong> para empezar.</span>
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {rangos.length > 0 && (
+        <p className="text-xs text-stone-400 flex items-center gap-1.5">
+          <span className="inline-block w-2 h-2 rounded-full bg-emerald-400" />
+          {rangos.length} rango{rangos.length !== 1 ? 's' : ''} · Alta en asesoría generada automáticamente por cada asignación
+        </p>
+      )}
+    </div>
+  );
+}
+
 // ── Planos del Salón ────────────────────────────────────────────────────────
 function PlanosTab({ eventId, event, hasPermission }) {
+  const [planSubTab, setPlanSubTab] = useState('static'); // 'static' | 'editor'
   const [plan,      setPlan]      = useState(null);
   const [planUrl,   setPlanUrl]   = useState(null);
   const [loading,   setLoading]   = useState(true);
@@ -1283,10 +1789,44 @@ function PlanosTab({ eventId, event, hasPermission }) {
 
   return (
     <div className="space-y-4">
+
+      {/* ── Sub-tabs: Estático / Editor interactivo ── */}
+      <div className="flex gap-1 bg-stone-100 rounded-xl p-1 w-fit">
+        <button
+          onClick={() => setPlanSubTab('static')}
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+            planSubTab === 'static'
+              ? 'bg-white text-emerald-700 shadow-sm'
+              : 'text-stone-500 hover:text-stone-700'
+          }`}
+        >
+          <Upload size={14} /> Plano estático
+        </button>
+        <button
+          onClick={() => setPlanSubTab('editor')}
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+            planSubTab === 'editor'
+              ? 'bg-white text-emerald-700 shadow-sm'
+              : 'text-stone-500 hover:text-stone-700'
+          }`}
+        >
+          <Pencil size={14} /> Editor interactivo
+        </button>
+      </div>
+
+      {/* ═══════════════════════════════════════════════════
+           SUB-TAB: EDITOR INTERACTIVO
+          ═══════════════════════════════════════════════════ */}
+      {planSubTab === 'editor' && <FloorEditor eventId={eventId} />}
+
+      {/* ═══════════════════════════════════════════════════
+           SUB-TAB: PLANO ESTÁTICO (comportamiento original)
+          ═══════════════════════════════════════════════════ */}
+      {planSubTab === 'static' && <>
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
-          <h3 className="font-semibold text-stone-800 flex items-center gap-2"><Map size={18} className="text-stone-500" /> Plano del salón</h3>
-          <p className="text-xs text-stone-500 mt-0.5">Sube el plano para consulta del equipo de sala</p>
+          <h3 className="font-semibold text-stone-800 flex items-center gap-2"><Map size={18} className="text-stone-500" /> Plano estático del salón</h3>
+          <p className="text-xs text-stone-500 mt-0.5">Sube una imagen o PDF para consulta del equipo</p>
         </div>
         {plan && (
           <div className="flex items-center gap-2">
@@ -1367,6 +1907,8 @@ function PlanosTab({ eventId, event, hasPermission }) {
           )}
         </>
       )}
+      {/* fin planSubTab === 'static' */}
+      </>}
     </div>
   );
 }

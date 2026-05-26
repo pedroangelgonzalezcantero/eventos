@@ -15,6 +15,8 @@ import UserManagement from './pages/admin/UserManagement';
 import JobPositions from './pages/admin/JobPositions';
 import CalendarView from './pages/admin/CalendarView';
 import AutomationSettings from './pages/admin/AutomationSettings';
+import PersonaManagement from './pages/admin/PersonaManagement';
+import AltasView from './pages/admin/AltasView';
 import ClientPortal from './pages/client/ClientPortal';
 
 /**
@@ -80,6 +82,12 @@ export default function App() {
           <Route path="/admin/automatizaciones" element={
             <PrivateRoute roles={['OFFICE']}><AutomationSettings /></PrivateRoute>
           } />
+          <Route path="/admin/personas" element={
+            <PrivateRoute roles={['OFFICE']}><PersonaManagement /></PrivateRoute>
+          } />
+          <Route path="/admin/altas" element={
+            <PrivateRoute roles={['OFFICE']}><AltasView /></PrivateRoute>
+          } />
 
           {/* ── Vistas de staff — acceso por ROL o por PERMISO ─────────────────
               anyPermission permite que cualquier usuario con el permiso adecuado
@@ -117,7 +125,7 @@ export default function App() {
           <Route path="/no-autorizado" element={
             <div className="min-h-screen flex items-center justify-center bg-stone-50">
               <div className="text-center card p-12">
-                <p className="text-5xl mb-4">🚫</p>
+                <p className="text-5xl mb-4"></p>
                 <h1 className="text-2xl font-bold text-stone-900 mb-2">Acceso no autorizado</h1>
                 <p className="text-stone-500 mb-6">No tienes permiso para ver esta página.</p>
                 <a href="/login" className="btn-primary">Volver al inicio</a>

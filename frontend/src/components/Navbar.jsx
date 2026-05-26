@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import {
   LayoutDashboard, Calendar, Users, Music2, ChefHat, Layers,
   LogOut, Menu, X, ChevronRight, Sparkles, CalendarDays, Bell, Briefcase,
+  UserCheck, FileText,
 } from 'lucide-react';
 import logoApp from '../assets/logoApp.png';
 
@@ -13,6 +14,8 @@ const OFFICE_NAV = [
   { to: '/admin/eventos',          label: 'Eventos',          icon: Calendar        },
   { to: '/admin/calendario',       label: 'Calendario',       icon: CalendarDays    },
   { to: '/admin/usuarios',         label: 'Personal',         icon: Users           },
+  { to: '/admin/personas',         label: 'Trabajadores',     icon: UserCheck       },
+  { to: '/admin/altas',            label: 'Altas asesoría',   icon: FileText        },
   { to: '/admin/puestos',          label: 'Puestos',          icon: Briefcase       },
   { to: '/admin/automatizaciones', label: 'Automatizaciones', icon: Bell            },
 ];

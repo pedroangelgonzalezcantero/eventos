@@ -2,7 +2,7 @@ package com.salon.eventos.dto;
 
 import com.salon.eventos.entity.EventType;
 import lombok.Data;
-import javax.validation.constraints.*;
+import jakarta.validation.constraints.*;
 import java.time.LocalDate;
 
 @Data

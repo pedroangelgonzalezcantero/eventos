@@ -4,7 +4,7 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -97,10 +97,10 @@ public class Event {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-    // Flags de completitud
-    private boolean menuConfirmed = false;
-    private boolean allergensCompleted = false;
-    private boolean protocolCompleted = false;
-    private boolean budgetSigned = false;
+    // Flags de completitud — @Builder.Default para que Lombok respete el valor inicial
+    @Builder.Default private boolean menuConfirmed = false;
+    @Builder.Default private boolean allergensCompleted = false;
+    @Builder.Default private boolean protocolCompleted = false;
+    @Builder.Default private boolean budgetSigned = false;
 }
 

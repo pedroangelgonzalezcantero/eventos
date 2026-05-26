@@ -9,4 +9,3 @@ ALTER TABLE floor_plans
 
 -- Eliminar el default temporal (no necesario en producción, las filas son nuevas)
 ALTER TABLE floor_plans ALTER COLUMN data DROP DEFAULT;
-

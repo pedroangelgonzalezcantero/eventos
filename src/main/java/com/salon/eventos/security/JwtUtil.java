@@ -1,10 +1,13 @@
 package com.salon.eventos.security;
 
 import io.jsonwebtoken.*;
+import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
+import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 @Component
@@ -16,16 +19,25 @@ public class JwtUtil {
     @Value("${app.jwt.expiration}")
     private long expiration;
 
+    private SecretKey getKey() {
+        byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
+        // jjwt 0.12 requiere al menos 64 bytes para HS512; rellenamos si es corto
+        if (keyBytes.length < 64) {
+            keyBytes = Arrays.copyOf(keyBytes, 64);
+        }
+        return Keys.hmacShaKeyFor(keyBytes);
+    }
+
     public String generateToken(UserDetails userDetails, String role, Set<String> permissions) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", role);
         claims.put("permissions", new ArrayList<>(permissions));
         return Jwts.builder()
-                .setClaims(claims)
-                .setSubject(userDetails.getUsername())
-                .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + expiration))
-                .signWith(SignatureAlgorithm.HS512, secret)
+                .claims(claims)
+                .subject(userDetails.getUsername())
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + expiration))
+                .signWith(getKey())
                 .compact();
     }
 
@@ -64,8 +76,9 @@ public class JwtUtil {
 
     private Claims getClaims(String token) {
         return Jwts.parser()
-                .setSigningKey(secret)
-                .parseClaimsJws(token)
-                .getBody();
+                .verifyWith(getKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
     }
 }

@@ -13,4 +13,3 @@ WHERE NOT EXISTS (SELECT 1 FROM role_permissions WHERE role = 'OFFICE' AND permi
 INSERT INTO role_permissions (role, permission_code)
 SELECT 'FLOOR', 'FLOOR_PLAN_VIEW'
 WHERE NOT EXISTS (SELECT 1 FROM role_permissions WHERE role = 'FLOOR' AND permission_code = 'FLOOR_PLAN_VIEW');
-
