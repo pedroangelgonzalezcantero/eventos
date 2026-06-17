@@ -240,6 +240,7 @@ public class EventService {
                 .status(e.getStatus())
                 .statusLabel(e.getStatus().getLabel())
                 .clientUsername(e.getClientUser() != null ? e.getClientUser().getUsername() : null)
+                .clientUserId(e.getClientUser() != null ? e.getClientUser().getId() : null)
                 .notes(e.getNotes())
                 .menuConfirmed(e.isMenuConfirmed())
                 .allergensCompleted(e.isAllergensCompleted())

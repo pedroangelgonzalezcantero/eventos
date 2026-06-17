@@ -1,9 +1,9 @@
-import { useEffect, useState, useRef } from 'react';
+﻿import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
 import Layout from '../../components/Layout';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Music2, Layers, ChefHat, UserPlus, Trash2, Edit2, X, AlertTriangle, Table2, Map, ZoomIn, ZoomOut, Upload, RotateCcw, Download, Plus, Save, ClipboardList, FileSpreadsheet, CheckCircle2, AlertCircle, Pencil } from 'lucide-react';
+import { ArrowLeft, Music2, Layers, ChefHat, UserPlus, Trash2, Edit2, X, AlertTriangle, Table2, Map, ZoomIn, ZoomOut, Upload, RotateCcw, Download, Plus, Save, ClipboardList, FileSpreadsheet, CheckCircle2, AlertCircle, Pencil, KeyRound, Copy, Eye, EyeOff, User } from 'lucide-react';
 import PersonaAutocomplete from '../../components/PersonaAutocomplete';
 import PdfDownloadButton from '../../components/PdfDownloadButton';
 import ProtocolPdfDoc  from '../../components/pdf/ProtocolPdfDoc';
@@ -13,6 +13,7 @@ import MenusPdfDoc     from '../../components/pdf/MenusPdfDoc';
 import InvoicePdfDoc   from '../../components/pdf/InvoicePdfDoc';
 import { useAuth } from '../../context/AuthContext';
 import FloorEditor from '../../components/floorEditor/FloorEditor';
+import MesasAdminTab from './MesasAdminTab';
 
 const TABS = [
   { id: 'info',         label: 'Información'  },
@@ -132,7 +133,7 @@ export default function EventDetail() {
         </div>
 
         {/* Tab content */}
-        {tab === 'info'         && <InfoTab event={event} />}
+        {tab === 'info'         && <InfoTab event={event} eventId={id} onReload={loadEvent} />}
         {tab === 'asignaciones' && <AsignacionesTab eventId={id} assignments={assignments} staff={staff} reload={loadAssignments} />}
         {tab === 'rangos'       && <RangosTab eventId={id} event={event} />}
         {tab === 'menus'        && <MenusTab eventId={id} event={event} menus={menus} reload={loadMenus} />}
@@ -155,32 +156,300 @@ const ALLERGEN_LABELS_MAP = { GLUTEN:'Gluten/Celíaco', LACTEOS:'Lácteos', HUEV
 const ALLERGEN_BADGE_COLORS = ['bg-amber-50 text-amber-700 border border-amber-200','bg-red-50 text-red-700 border border-red-200','bg-orange-50 text-orange-700 border border-orange-200','bg-yellow-50 text-yellow-700 border border-yellow-200'];
 const DIET_COLORS = { VEGETARIANO:'bg-green-100 text-green-700', VEGANO:'bg-emerald-100 text-emerald-700', HALAL:'bg-teal-100 text-teal-700', KOSHER:'bg-cyan-100 text-cyan-700', SIN_SAL:'bg-sky-100 text-sky-700', DIABETICO:'bg-blue-100 text-blue-700' };
 
-function InfoTab({ event }) {
+const EVENT_TYPES = ['BODA','COMUNION','BAUTIZO','CUMPLEANOS','ANIVERSARIO','EMPRESA','PRIVADO','OTRO'];
+const EVENT_TYPE_LABELS = { BODA:'Boda', COMUNION:'Comunión', BAUTIZO:'Bautizo', CUMPLEANOS:'Cumpleaños', ANIVERSARIO:'Aniversario', EMPRESA:'Empresa', PRIVADO:'Privado', OTRO:'Otro' };
+
+function InfoTab({ event, eventId, onReload }) {
+  // ── Edición de datos del evento ───────────────────────────────────────────
+  const [editMode, setEditMode]   = useState(false);
+  const [saving,   setSaving]     = useState(false);
+  const [form,     setForm]       = useState({});
+
+  const openEdit = () => {
+    setForm({
+      clientName:      event.clientName      || '',
+      type:            event.type            || 'BODA',
+      eventDate:       event.eventDate       || '',
+      estimatedGuests: event.estimatedGuests || '',
+      venue:           event.venue           || '',
+      contactPerson:   event.contactPerson   || '',
+      phone:           event.phone           || '',
+      email:           event.email           || '',
+      notes:           event.notes           || '',
+    });
+    setEditMode(true);
+  };
+
+  const handleSaveEvent = async () => {
+    if (!form.clientName?.trim()) { toast.error('El nombre del cliente es obligatorio'); return; }
+    if (!form.eventDate)          { toast.error('La fecha es obligatoria'); return; }
+    setSaving(true);
+    try {
+      await api.put(`/events/${eventId}`, {
+        ...form,
+        estimatedGuests: form.estimatedGuests ? Number(form.estimatedGuests) : null,
+      });
+      toast.success('Datos actualizados ✓');
+      setEditMode(false);
+      onReload();
+    } catch (err) {
+      const msg = err.response?.data?.message || err.response?.data?.clientName || 'Error al guardar';
+      toast.error(typeof msg === 'string' ? msg : 'Error al guardar los datos');
+    } finally { setSaving(false); }
+  };
+
+  // ── Gestión de credenciales del portal del cliente ────────────────────────
+  const [showPwdSection,  setShowPwdSection]  = useState(false);
+  const [newPwd,          setNewPwd]          = useState('');
+  const [showPwd,         setShowPwd]         = useState(false);
+  const [savingPwd,       setSavingPwd]       = useState(false);
+  const [savedCredentials, setSavedCredentials] = useState(null); // { username, password }
+
+  /** Genera una contraseña legible aleatoria */
+  const generatePassword = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+    return Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  };
+
+  const handleAutoGenerate = () => {
+    const pwd = generatePassword();
+    setNewPwd(pwd);
+    setShowPwd(true);
+    setShowPwdSection(true);
+  };
+
+  const handleResetPassword = async () => {
+    if (!newPwd.trim() || newPwd.length < 6) { toast.error('La contraseña debe tener al menos 6 caracteres'); return; }
+    if (!event.clientUserId) { toast.error('No hay usuario de portal asignado a este evento'); return; }
+    setSavingPwd(true);
+    try {
+      await api.put(`/users/${event.clientUserId}/password`, { password: newPwd });
+      setSavedCredentials({ username: event.clientUsername, password: newPwd });
+      toast.success('Contraseña actualizada ✓');
+      setShowPwdSection(false);
+      setShowPwd(false);
+    } catch { toast.error('Error al actualizar la contraseña'); }
+    finally { setSavingPwd(false); }
+  };
+
+  const copyText = (text, label) => {
+    navigator.clipboard.writeText(text || '').then(() => toast.success(`${label} copiado`));
+  };
+
+  const f = (k, v) => setForm(p => ({ ...p, [k]: v }));
+
   return (
-    <div className="card">
-      <h3 className="font-semibold text-stone-800 mb-4">Datos del evento</h3>
-      <dl className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8 text-sm">
-        {[
-          { label: 'Cliente',             value: event.clientName        },
-          { label: 'Tipo',                value: event.typeLabel         },
-          { label: 'Fecha',               value: new Date(event.eventDate).toLocaleDateString('es-ES') },
-          { label: 'Invitados estimados', value: event.estimatedGuests   },
-          { label: 'Salón',               value: event.venue             },
-          { label: 'Contacto',            value: event.contactPerson     },
-          { label: 'Teléfono',            value: event.phone             },
-          { label: 'Email',               value: event.email             },
-          { label: 'Acceso cliente',      value: event.clientUsername    },
-        ].map(item => item.value ? (
-          <div key={item.label}>
-            <dt className="text-stone-500">{item.label}</dt>
-            <dd className="font-medium text-stone-900">{item.value}</dd>
+    <div className="space-y-4">
+      {/* ── Datos del evento ─────────────────────────────────────────────── */}
+      <div className="card">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold text-stone-800">Datos del evento</h3>
+          {!editMode
+            ? <button onClick={openEdit} className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-xl bg-stone-100 text-stone-600 hover:bg-stone-200 transition-colors">
+                <Pencil size={13} /> Editar
+              </button>
+            : <div className="flex gap-2">
+                <button onClick={() => setEditMode(false)} className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-xl bg-stone-100 text-stone-600 hover:bg-stone-200 transition-colors">
+                  <X size={13} /> Cancelar
+                </button>
+                <button onClick={handleSaveEvent} disabled={saving}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold rounded-xl bg-rose-600 text-white hover:bg-rose-700 transition-colors disabled:opacity-50">
+                  {saving ? <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Save size={13} />}
+                  Guardar
+                </button>
+              </div>
+          }
+        </div>
+
+        {!editMode ? (
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8 text-sm">
+            {[
+              { label: 'Cliente',             value: event.clientName        },
+              { label: 'Tipo',                value: event.typeLabel         },
+              { label: 'Fecha',               value: event.eventDate ? new Date(event.eventDate + 'T12:00:00').toLocaleDateString('es-ES') : null },
+              { label: 'Invitados estimados', value: event.estimatedGuests   },
+              { label: 'Salón',               value: event.venue             },
+              { label: 'Contacto',            value: event.contactPerson     },
+              { label: 'Teléfono',            value: event.phone             },
+              { label: 'Email',               value: event.email             },
+            ].map(item => item.value ? (
+              <div key={item.label}>
+                <dt className="text-stone-500">{item.label}</dt>
+                <dd className="font-medium text-stone-900">{item.value}</dd>
+              </div>
+            ) : null)}
+            {event.notes && (
+              <div className="sm:col-span-2 pt-2 border-t border-stone-100 mt-1">
+                <dt className="text-stone-500 mb-1">Notas internas</dt>
+                <dd className="text-stone-700">{event.notes}</dd>
+              </div>
+            )}
+          </dl>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="label">Cliente *</label>
+              <input className="input" value={form.clientName} onChange={e => f('clientName', e.target.value)} placeholder="Nombre del cliente" />
+            </div>
+            <div>
+              <label className="label">Tipo de evento *</label>
+              <select className="input" value={form.type} onChange={e => f('type', e.target.value)}>
+                {EVENT_TYPES.map(t => <option key={t} value={t}>{EVENT_TYPE_LABELS[t]}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="label">Fecha del evento *</label>
+              <input className="input" type="date" value={form.eventDate} onChange={e => f('eventDate', e.target.value)} />
+            </div>
+            <div>
+              <label className="label">Invitados estimados</label>
+              <input className="input" type="number" min="1" value={form.estimatedGuests} onChange={e => f('estimatedGuests', e.target.value)} placeholder="100" />
+            </div>
+            <div>
+              <label className="label">Salón / Lugar</label>
+              <input className="input" value={form.venue} onChange={e => f('venue', e.target.value)} placeholder="Salón Principal" />
+            </div>
+            <div>
+              <label className="label">Persona de contacto</label>
+              <input className="input" value={form.contactPerson} onChange={e => f('contactPerson', e.target.value)} />
+            </div>
+            <div>
+              <label className="label">Teléfono</label>
+              <input className="input" type="tel" value={form.phone} onChange={e => f('phone', e.target.value)} placeholder="612 345 678" />
+            </div>
+            <div>
+              <label className="label">Email</label>
+              <input className="input" type="email" value={form.email} onChange={e => f('email', e.target.value)} placeholder="cliente@email.com" />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="label">Notas internas</label>
+              <textarea className="input resize-none" rows={3} value={form.notes} onChange={e => f('notes', e.target.value)} placeholder="Observaciones internas..." />
+            </div>
           </div>
-        ) : null)}
-      </dl>
-      {event.notes && (
-        <div className="mt-4 pt-4 border-t border-stone-100">
-          <p className="text-stone-500 text-sm mb-1">Notas internas</p>
-          <p className="text-stone-700 text-sm">{event.notes}</p>
+        )}
+      </div>
+
+      {/* ── Portal del cliente ───────────────────────────────────────────── */}
+      {event.clientUsername && (
+        <div className="card border-blue-100 bg-blue-50/30">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center">
+              <User size={14} className="text-white" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-stone-800 text-sm">Acceso al portal del cliente</h3>
+              <p className="text-xs text-stone-500">Credenciales para que el cliente entre al portal</p>
+            </div>
+          </div>
+
+          {/* Usuario */}
+          <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-blue-100 mb-3">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-stone-500 mb-0.5">Usuario de acceso</p>
+              <p className="font-mono font-bold text-blue-700 text-base tracking-wide">{event.clientUsername}</p>
+            </div>
+            <button onClick={() => copyText(event.clientUsername, 'Usuario')}
+              title="Copiar usuario"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-medium transition-colors flex-none">
+              <Copy size={13} /> Copiar
+            </button>
+          </div>
+
+          {/* Credenciales guardadas tras reseteo */}
+          {savedCredentials && (
+            <div className="mb-3 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+              <p className="text-xs font-semibold text-emerald-800 mb-2 flex items-center gap-1.5">
+                <CheckCircle2 size={14} /> Contraseña actualizada — comparte estos datos con el cliente:
+              </p>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="bg-white rounded-lg p-2 border border-emerald-100">
+                  <p className="text-xs text-stone-500 mb-0.5">Usuario</p>
+                  <p className="font-mono font-bold text-stone-900">{savedCredentials.username}</p>
+                </div>
+                <div className="bg-white rounded-lg p-2 border border-emerald-100">
+                  <p className="text-xs text-stone-500 mb-0.5">Contraseña</p>
+                  <p className="font-mono font-bold text-stone-900">{savedCredentials.password}</p>
+                </div>
+              </div>
+              <div className="flex gap-2 mt-2">
+                <button onClick={() => copyText(`Usuario: ${savedCredentials.username}\nContraseña: ${savedCredentials.password}`, 'Credenciales')}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition-colors">
+                  <Copy size={12} /> Copiar todo
+                </button>
+                <button onClick={() => setSavedCredentials(null)}
+                  className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-stone-400 hover:text-stone-600 text-xs transition-colors">
+                  <X size={12} /> Cerrar
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Botones de acción */}
+          {!showPwdSection ? (
+            <div className="flex gap-2 flex-wrap">
+              <button onClick={handleAutoGenerate}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors">
+                <KeyRound size={13} /> Generar nueva contraseña
+              </button>
+              {event.clientUserId && (
+                <button onClick={() => { setShowPwdSection(true); setShowPwd(true); setNewPwd(''); }}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium bg-white border border-blue-200 text-blue-700 hover:bg-blue-50 transition-colors">
+                  <Pencil size={13} /> Poner contraseña manual
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl border border-blue-100 p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-stone-800 flex items-center gap-1.5">
+                  <KeyRound size={14} />
+                  {newPwd && showPwd ? 'Contraseña generada (edítala si quieres)' : 'Nueva contraseña'}
+                </p>
+                <button onClick={() => { setShowPwdSection(false); setNewPwd(''); setShowPwd(false); }}
+                  className="text-stone-400 hover:text-stone-600 p-1 rounded-lg hover:bg-stone-100 transition-colors">
+                  <X size={14} />
+                </button>
+              </div>
+              <div className="relative">
+                <input
+                  type={showPwd ? 'text' : 'password'}
+                  value={newPwd}
+                  onChange={e => setNewPwd(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleResetPassword()}
+                  placeholder="Mínimo 6 caracteres"
+                  className="input pr-20 text-sm font-mono"
+                  autoFocus
+                />
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                  <button type="button" onClick={() => setShowPwd(p => !p)}
+                    className="p-1.5 rounded-lg text-stone-400 hover:text-stone-600 hover:bg-stone-100 transition-colors">
+                    {showPwd ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                  <button type="button" onClick={() => { const p = generatePassword(); setNewPwd(p); setShowPwd(true); }}
+                    title="Generar aleatoria"
+                    className="p-1.5 rounded-lg text-stone-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
+                    <KeyRound size={14} />
+                  </button>
+                </div>
+              </div>
+              {newPwd && showPwd && (
+                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  ⚠️ Anota esta contraseña antes de guardar — no podrás verla de nuevo
+                </p>
+              )}
+              <div className="flex gap-2 justify-end">
+                <button onClick={() => { setShowPwdSection(false); setNewPwd(''); setShowPwd(false); }}
+                  className="px-3 py-1.5 text-sm rounded-xl bg-stone-100 text-stone-600 hover:bg-stone-200 transition-colors">
+                  Cancelar
+                </button>
+                <button onClick={handleResetPassword} disabled={savingPwd || !newPwd.trim()}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50">
+                  {savingPwd ? <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Save size={13} />}
+                  Guardar contraseña
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -370,16 +639,32 @@ function AllergensTab({ eventId, event, tables, reload, onGoToMesas }) {
   const allGuests = tables.flatMap(t =>
     (t.guests || []).map(g => ({ ...g, tableName: t.name, tableId: t.id }))
   );
+
+  // Cuenta personas reales: "Maria y Jose" = 2
+  const countPersons = name => name ? name.split(/\s+[yY]\s+/).length : 1;
+
   // Solo mesas con al menos un invitado con restricción
   const tablesWithRestrictions = tables.filter(t =>
     (t.guests || []).some(g => g.allergies || g.diet)
   );
-  const withRestrictionsCount = allGuests.filter(g => g.allergies || g.diet).length;
+  const totalGuestCount = allGuests.reduce((s, g) => s + countPersons(g.guestName), 0);
+  const withRestrictionsCount = allGuests
+    .filter(g => g.allergies || g.diet)
+    .reduce((s, g) => s + countPersons(g.guestName), 0);
 
   // Invitados de la mesa seleccionada en el formulario (para el step 2)
   const guestsInFormMesa = formMesaId
     ? (tables.find(t => t.id === parseInt(formMesaId))?.guests || [])
     : [];
+
+  // Expande parejas: "Maria y Jose" → dos entradas virtuales
+  const expandedGuestsInFormMesa = guestsInFormMesa.flatMap(g => {
+    const parts = g.guestName ? g.guestName.split(/\s+[yY]\s+/).map(s => s.trim()).filter(Boolean) : [];
+    if (parts.length > 1) {
+      return parts.map(p => ({ ...g, displayName: p, isCouple: true, coupleFullName: g.guestName }));
+    }
+    return [{ ...g, displayName: g.guestName, isCouple: false }];
+  });
 
   // ── Formulario "Añadir" ───────────────────────────────────────────────────
   const openForm = () => {
@@ -391,18 +676,43 @@ function AllergensTab({ eventId, event, tables, reload, onGoToMesas }) {
 
   const handleAdd = async () => {
     if (!formGuestId) { toast.error('Selecciona un invitado'); return; }
+    // formGuestId puede ser "id" o "id::nombreIndividual" (pareja)
+    const [guestIdStr, individualName] = formGuestId.split('::');
     const mesa  = tables.find(t => t.id === parseInt(formMesaId));
-    const guest = (mesa?.guests || []).find(g => g.id === parseInt(formGuestId));
+    const guest = (mesa?.guests || []).find(g => g.id === parseInt(guestIdStr));
     if (!guest) return;
     if (!newAllergies.length && !newDiet) { toast.error('Selecciona al menos un alérgeno o dieta'); return; }
     setSaving(true);
     try {
-      await api.put(`/events/${eventId}/tables/${mesa.id}/guests/${guest.id}`, {
-        guestName: guest.guestName,
-        allergies: newAllergies.join(','),
-        diet: newDiet,
-        observations: newObs,
-      });
+      const isCouple = individualName && individualName !== guest.guestName;
+      if (isCouple) {
+        // Dividir pareja: renombrar el original al nombre individual seleccionado
+        const parts = guest.guestName.split(/\s+[yY]\s+/).map(s => s.trim()).filter(Boolean);
+        const otherName = parts.find(p => p !== individualName);
+        // Renombrar el registro original y asignarle la alergia
+        await api.put(`/events/${eventId}/tables/${mesa.id}/guests/${guest.id}`, {
+          guestName: individualName,
+          allergies: newAllergies.join(','),
+          diet: newDiet,
+          observations: newObs,
+        });
+        // Crear nuevo registro para la otra persona (sin alergias aún)
+        if (otherName) {
+          await api.post(`/events/${eventId}/tables/${mesa.id}/guests`, {
+            guestName: otherName,
+            allergies: '',
+            diet: '',
+            observations: '',
+          });
+        }
+      } else {
+        await api.put(`/events/${eventId}/tables/${mesa.id}/guests/${guest.id}`, {
+          guestName: guest.guestName,
+          allergies: newAllergies.join(','),
+          diet: newDiet,
+          observations: newObs,
+        });
+      }
       toast.success('Alérgenos asignados');
       setShowForm(false);
       reload();
@@ -489,7 +799,7 @@ function AllergensTab({ eventId, event, tables, reload, onGoToMesas }) {
           <h3 className="font-semibold text-stone-800">Alérgenos y dietas especiales</h3>
           <p className="text-xs text-stone-500 mt-0.5">
             {withRestrictionsCount > 0
-              ? `${withRestrictionsCount} de ${allGuests.length} invitados con restricciones`
+              ? `${withRestrictionsCount} de ${totalGuestCount} invitados con restricciones`
               : 'Ningún invitado tiene restricciones todavía'}
           </p>
         </div>
@@ -523,11 +833,14 @@ function AllergensTab({ eventId, event, tables, reload, onGoToMesas }) {
               value={formMesaId}
               onChange={e => { setFormMesaId(e.target.value); setFormGuestId(''); }}>
               <option value="">— Seleccionar mesa —</option>
-              {tables.map(t => (
-                <option key={t.id} value={t.id}>
-                  {t.name}{t.guestCount ? ` (${t.guestCount} inv.)` : ''}
-                </option>
-              ))}
+              {tables.filter(t => (t.guests || []).length > 0).map(t => {
+                const cnt = (t.guests || []).reduce((s, g) => s + countPersons(g.guestName), 0);
+                return (
+                  <option key={t.id} value={t.id}>
+                    {t.name}{` (${cnt} inv.)`}
+                  </option>
+                );
+              })}
             </select>
           </div>
 
@@ -540,9 +853,11 @@ function AllergensTab({ eventId, event, tables, reload, onGoToMesas }) {
                 : (
                   <select className="input" value={formGuestId} onChange={e => setFormGuestId(e.target.value)}>
                     <option value="">— Seleccionar invitado —</option>
-                    {guestsInFormMesa.map(g => (
-                      <option key={g.id} value={g.id}>
-                        {g.guestName}{(g.allergies || g.diet) ? ' ⚠' : ''}
+                    {expandedGuestsInFormMesa.map((g, idx) => (
+                      <option key={g.isCouple ? `${g.id}::${g.displayName}` : g.id}
+                              value={g.isCouple ? `${g.id}::${g.displayName}` : g.id}>
+                        {g.displayName}
+                        {g.isCouple ? ' 👫' : ((g.allergies || g.diet) ? ' ⚠' : '')}
                       </option>
                     ))}
                   </select>
@@ -619,7 +934,7 @@ function AllergensTab({ eventId, event, tables, reload, onGoToMesas }) {
                 ⚠ {restricted.length} restricción{restricted.length !== 1 ? 'es' : ''}
               </span>
               <span className="ml-auto text-xs text-stone-400">
-                {(table.guests || []).length} inv. en total
+                {(table.guests || []).reduce((s, g) => s + countPersons(g.guestName), 0)} inv. en total
               </span>
             </div>
 
@@ -917,296 +1232,6 @@ function RemindersTab({ event, onSend }) {
           <button onClick={() => onSend('SMS')}      className="btn-secondary text-sm"> Enviar por SMS</button>
           <button onClick={() => onSend('WHATSAPP')} className="btn-secondary text-sm"> Enviar por WhatsApp</button>
         </div>
-      </div>
-    </div>
-  );
-}
-
-// -- Mesas Admin ----------------------------------------------------------------
-const DIET_OPTS = ['VEGETARIANO','VEGANO','HALAL','KOSHER','SIN_SAL','DIABETICO'];
-
-function MesasAdminTab({ eventId, event, tables, reload }) {
-  const [showNewTable, setShowNewTable]       = useState(false);
-  const [newTable, setNewTable]               = useState({ name: '', capacity: '', notes: '' });
-  const [showAddGuest, setShowAddGuest]       = useState(null); // tableId
-  const [guestForm, setGuestForm]             = useState({ guestName: '', diet: '', observations: '' });
-  const [selAllergens, setSelAllergens]       = useState([]);
-  const [editingGuest, setEditingGuest]       = useState(null); // { guest, tableId }
-  const [editGuestForm, setEditGuestForm]     = useState({ guestName: '', diet: '', observations: '' });
-  const [editSelAllergens, setEditSelAllergens] = useState([]);
-
-  const totalGuests   = tables.reduce((s, t) => s + (t.guestCount || 0), 0);
-  const totalAlergias = tables.reduce((s, t) => s + (t.allergiesCount || 0), 0);
-
-  const fetchPdfData = async () => {
-    const r = await api.get(`/events/${eventId}/tables`);
-    return { event, tables: r.data };
-  };
-  const safeName = (event?.clientName || 'evento').replace(/\s+/g, '-').toLowerCase();
-
-  const handleCreateTable = async () => {
-    if (!newTable.name.trim()) { toast.error('El nombre es obligatorio'); return; }
-    try {
-      await api.post(`/events/${eventId}/tables`, { ...newTable, capacity: newTable.capacity ? parseInt(newTable.capacity) : null });
-      toast.success('Mesa creada');
-      setShowNewTable(false); setNewTable({ name: '', capacity: '', notes: '' }); reload();
-    } catch { toast.error('Error al crear mesa'); }
-  };
-
-  const handleDeleteTable = async (tableId, name) => {
-    if (!confirm(`¿Eliminar la mesa "${name}" y todos sus invitados?`)) return;
-    try { await api.delete(`/events/${eventId}/tables/${tableId}`); toast.success('Mesa eliminada'); reload(); }
-    catch { toast.error('Error'); }
-  };
-
-  const handleAddGuest = async (tableId) => {
-    if (!guestForm.guestName.trim()) { toast.error('El nombre es obligatorio'); return; }
-    try {
-      await api.post(`/events/${eventId}/tables/${tableId}/guests`, { ...guestForm, allergies: selAllergens.join(',') });
-      toast.success('Invitado añadido');
-      setShowAddGuest(null); setGuestForm({ guestName:'', diet:'', observations:'' }); setSelAllergens([]); reload();
-    } catch { toast.error('Error'); }
-  };
-
-  const handleDeleteGuest = async (tableId, guestId) => {
-    try { await api.delete(`/events/${eventId}/tables/${tableId}/guests/${guestId}`); reload(); }
-    catch { toast.error('Error'); }
-  };
-
-  const handleMoveGuest = async (tableId, guestId, targetTableId) => {
-    try {
-      await api.patch(`/events/${eventId}/tables/${tableId}/guests/${guestId}/move`, { targetTableId });
-      toast.success('Invitado movido'); reload();
-    } catch { toast.error('Error al mover'); }
-  };
-
-  const startEditGuest = (g, tableId) => {
-    setEditingGuest({ guestId: g.id, tableId });
-    setEditGuestForm({ guestName: g.guestName, diet: g.diet || '', observations: g.observations || '' });
-    setEditSelAllergens(g.allergies ? g.allergies.split(',').filter(Boolean) : []);
-    setShowAddGuest(null);
-  };
-
-  const handleUpdateGuest = async () => {
-    if (!editGuestForm.guestName.trim()) { toast.error('El nombre es obligatorio'); return; }
-    try {
-      await api.put(`/events/${eventId}/tables/${editingGuest.tableId}/guests/${editingGuest.guestId}`, {
-        ...editGuestForm, allergies: editSelAllergens.join(','),
-      });
-      toast.success('Invitado actualizado');
-      setEditingGuest(null);
-      reload();
-    } catch { toast.error('Error al actualizar'); }
-  };
-
-  return (
-    <div className="space-y-4">
-      {tables.length > 0 && (
-        <div className="grid grid-cols-3 gap-3">
-          {[
-            { label: 'Mesas',     value: tables.length,  color: 'text-stone-900' },
-            { label: 'Invitados', value: totalGuests,     color: 'text-stone-900' },
-            { label: 'Con alergias', value: totalAlergias, color: totalAlergias > 0 ? 'text-amber-600' : 'text-emerald-600' },
-          ].map(i => (
-            <div key={i.label} className="card p-4 text-center">
-              <p className={`text-2xl font-bold ${i.color}`}>{i.value}</p>
-              <p className="text-sm text-stone-500">{i.label}</p>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div className="flex justify-between items-center">
-        <h3 className="font-semibold text-stone-800">
-          Distribución de mesas
-          <span className="text-stone-400 font-normal text-sm ml-2">(introducidas por el cliente)</span>
-        </h3>
-        <div className="flex items-center gap-2">
-          <PdfDownloadButton
-            permissionCode="PDF_TABLES"
-            label="PDF mesas"
-            fileName={`mesas-${safeName}.pdf`}
-            fetchData={fetchPdfData}
-            DocumentComponent={TablesPdfDoc}
-          />
-          <button onClick={() => setShowNewTable(true)} className="btn-primary text-sm">+ Nueva mesa</button>
-        </div>
-      </div>
-
-      {showNewTable && (
-        <div className="card border-blue-100 bg-blue-50/30">
-          <h4 className="font-medium mb-3">Nueva mesa</h4>
-          <div className="grid grid-cols-2 gap-3 mb-3">
-            <div><label className="label">Nombre *</label><input className="input" value={newTable.name} onChange={e => setNewTable(f => ({ ...f, name: e.target.value }))} placeholder="Mesa 1 / Presidencial" /></div>
-            <div><label className="label">Capacidad</label><input className="input" type="number" min="1" value={newTable.capacity} onChange={e => setNewTable(f => ({ ...f, capacity: e.target.value }))} placeholder="10" /></div>
-            <div className="col-span-2"><label className="label">Observaciones</label><input className="input" value={newTable.notes} onChange={e => setNewTable(f => ({ ...f, notes: e.target.value }))} placeholder="Junto a la pista..." /></div>
-          </div>
-          <div className="flex gap-3">
-            <button onClick={() => setShowNewTable(false)} className="btn-secondary">Cancelar</button>
-            <button onClick={handleCreateTable} className="btn-primary">Crear mesa</button>
-          </div>
-        </div>
-      )}
-
-      {tables.length === 0 && !showNewTable && (
-        <div className="card text-center py-12 text-stone-500">
-          El cliente aún no ha configurado mesas, o puedes crearlas tú desde aquí.
-        </div>
-      )}
-
-      <div className="space-y-4">
-        {tables.map(table => {
-          const occupancy = table.capacity ? Math.round((table.guestCount / table.capacity) * 100) : null;
-          return (
-            <div key={table.id} className={`card ${table.allergiesCount > 0 ? 'border-amber-200' : ''}`}>
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h4 className="font-semibold text-stone-900">{table.name}</h4>
-                    {table.allergiesCount > 0 && (
-                      <span className="badge bg-amber-100 text-amber-700">⚠ {table.allergiesCount} alergia{table.allergiesCount !== 1 ? 's' : ''}</span>
-                    )}
-                    {table.notes && <span className="text-xs text-stone-400 italic">{table.notes}</span>}
-                  </div>
-                  <div className="flex items-center gap-3 mt-1">
-                    <span className="text-xs text-stone-500">
-                      {table.guestCount}{table.capacity ? `/${table.capacity}` : ''} invitado{table.guestCount !== 1 ? 's' : ''}
-                    </span>
-                    {occupancy !== null && (
-                      <div className="w-20 h-1.5 bg-stone-100 rounded-full overflow-hidden">
-                        <div className={`h-full rounded-full ${occupancy >= 100 ? 'bg-red-500' : occupancy >= 80 ? 'bg-amber-500' : 'bg-emerald-500'}`}
-                          style={{ width: `${Math.min(occupancy, 100)}%` }} />
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <button onClick={() => handleDeleteTable(table.id, table.name)}
-                  className="text-stone-300 hover:text-red-500 transition-colors p-1.5 rounded-lg hover:bg-red-50">
-                  <Trash2 size={15} />
-                </button>
-              </div>
-
-              <div className="space-y-1.5">
-                {(table.guests || []).map(g => {
-                  const isEditingThis = editingGuest?.guestId === g.id;
-                  return (
-                    <div key={g.id}>
-                      {/* Vista normal */}
-                      {!isEditingThis && (
-                        <div className="flex items-start justify-between p-2.5 bg-stone-50 rounded-xl">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-stone-900">{g.guestName}</p>
-                            <div className="flex flex-wrap gap-1 mt-0.5">
-                              {g.diet && <span className="badge bg-violet-100 text-violet-700 text-[10px]">{g.diet.replace('_',' ')}</span>}
-                              {g.allergies && g.allergies.split(',').filter(Boolean).map((a, idx) => (
-                                <span key={a} className={`badge text-[10px] ${ALLERGEN_BADGE_COLORS[idx % ALLERGEN_BADGE_COLORS.length]}`}>⚠ {ALLERGEN_LABELS_MAP[a] || a}</span>
-                              ))}
-                              {g.observations && <span className="text-[10px] text-stone-400 italic ml-1">{g.observations}</span>}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-1 flex-none ml-2">
-                            <button onClick={() => startEditGuest(g, table.id)}
-                              className="p-1 rounded-lg text-stone-300 hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Editar invitado">
-                              <Edit2 size={12} />
-                            </button>
-                            {tables.filter(t => t.id !== table.id).length > 0 && (
-                              <select
-                                className="text-xs border border-stone-200 rounded-lg px-1.5 py-1 text-stone-500 bg-white cursor-pointer"
-                                defaultValue=""
-                                onChange={e => { if (e.target.value) handleMoveGuest(table.id, g.id, parseInt(e.target.value)); e.target.value = ''; }}
-                              >
-                                <option value="" disabled>Mover ↗</option>
-                                {tables.filter(t => t.id !== table.id).map(t => (
-                                  <option key={t.id} value={t.id}>{t.name}</option>
-                                ))}
-                              </select>
-                            )}
-                            <button onClick={() => handleDeleteGuest(table.id, g.id)}
-                              className="text-stone-300 hover:text-red-500 transition-colors p-1 rounded-lg hover:bg-red-50">
-                              <Trash2 size={13} />
-                            </button>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Vista edición inline */}
-                      {isEditingThis && (
-                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-2.5">
-                          <div className="flex items-center justify-between">
-                            <p className="text-xs font-semibold text-amber-800">✏️ Editando invitado</p>
-                            <button onClick={() => setEditingGuest(null)} className="text-stone-400 hover:text-stone-600"><X size={14} /></button>
-                          </div>
-                          <input className="input text-sm" placeholder="Nombre *" value={editGuestForm.guestName}
-                            onChange={e => setEditGuestForm(f => ({ ...f, guestName: e.target.value }))} />
-                          <select className="input text-sm" value={editGuestForm.diet}
-                            onChange={e => setEditGuestForm(f => ({ ...f, diet: e.target.value }))}>
-                            <option value="">Sin dieta especial</option>
-                            {DIET_OPTS.map(d => <option key={d} value={d}>{d.replace('_',' ')}</option>)}
-                          </select>
-                          <div>
-                            <label className="label text-[10px] mb-1 block">Alérgenos</label>
-                            <div className="flex flex-wrap gap-1">
-                              {ALLERGEN_LIST.map(a => (
-                                <button key={a} type="button"
-                                  onClick={() => setEditSelAllergens(p => p.includes(a) ? p.filter(x => x !== a) : [...p, a])}
-                                  className={`px-2 py-0.5 rounded-md text-[10px] font-medium border transition-colors ${editSelAllergens.includes(a) ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-stone-600 border-stone-200 hover:border-amber-300'}`}>
-                                  {ALLERGEN_LABELS_MAP[a]}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                          <input className="input text-sm" placeholder="Observaciones" value={editGuestForm.observations}
-                            onChange={e => setEditGuestForm(f => ({ ...f, observations: e.target.value }))} />
-                          <div className="flex gap-2">
-                            <button onClick={() => setEditingGuest(null)} className="btn-secondary flex-1 text-xs py-1.5">Cancelar</button>
-                            <button onClick={handleUpdateGuest} className="btn-primary flex-1 text-xs py-1.5">Guardar</button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-                {(!table.guests || table.guests.length === 0) && (
-                  <p className="text-xs text-stone-400 italic text-center py-2">Sin invitados asignados</p>
-                )}
-              </div>
-
-              {showAddGuest !== table.id ? (
-                <button
-                  onClick={() => { setShowAddGuest(table.id); setSelAllergens([]); setGuestForm({ guestName:'', diet:'', observations:'' }); }}
-                  className="mt-3 w-full flex items-center justify-center gap-1.5 py-2 border-2 border-dashed border-stone-200 rounded-xl text-sm text-stone-500 hover:border-rose-300 hover:text-rose-600 transition-all">
-                  + Añadir invitado
-                </button>
-              ) : (
-                <div className="mt-3 p-4 bg-stone-50 rounded-2xl space-y-3">
-                  <h5 className="font-semibold text-sm text-stone-900">Nuevo invitado en {table.name}</h5>
-                  <input className="input" placeholder="Nombre *" value={guestForm.guestName} onChange={e => setGuestForm(f => ({ ...f, guestName: e.target.value }))} />
-                  <select className="input" value={guestForm.diet} onChange={e => setGuestForm(f => ({ ...f, diet: e.target.value }))}>
-                    <option value="">Sin dieta especial</option>
-                    {DIET_OPTS.map(d => <option key={d} value={d}>{d.replace('_',' ')}</option>)}
-                  </select>
-                  <div>
-                    <label className="label text-xs mb-1 block">Alérgenos</label>
-                    <div className="flex flex-wrap gap-1.5">
-                      {ALLERGEN_LIST.map(a => (
-                        <button key={a} type="button"
-                          onClick={() => setSelAllergens(p => p.includes(a) ? p.filter(x => x !== a) : [...p, a])}
-                          className={`px-2 py-1 rounded-lg text-xs font-medium border transition-colors ${selAllergens.includes(a) ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-stone-600 border-stone-200 hover:border-amber-300'}`}>
-                          {ALLERGEN_LABELS_MAP[a]}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <input className="input" placeholder="Observaciones" value={guestForm.observations} onChange={e => setGuestForm(f => ({ ...f, observations: e.target.value }))} />
-                  <div className="flex gap-2">
-                    <button onClick={() => setShowAddGuest(null)} className="btn-secondary flex-1 text-sm">Cancelar</button>
-                    <button onClick={() => handleAddGuest(table.id)} className="btn-primary flex-1 text-sm">Guardar</button>
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
       </div>
     </div>
   );

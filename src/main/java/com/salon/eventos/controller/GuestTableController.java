@@ -3,12 +3,18 @@ package com.salon.eventos.controller;
 import com.salon.eventos.dto.GuestDto;
 import com.salon.eventos.dto.GuestTableDto;
 import com.salon.eventos.service.GuestTableService;
+import com.salon.eventos.service.TableExcelService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -18,6 +24,9 @@ public class GuestTableController {
 
     @Autowired
     private GuestTableService service;
+
+    @Autowired
+    private TableExcelService excelService;
 
     // ─── MESAS ───────────────────────────────────────────────────────────────
 
@@ -48,6 +57,48 @@ public class GuestTableController {
                                              @PathVariable Long tableId) {
         service.deleteTable(tableId);
         return ResponseEntity.noContent().build();
+    }
+
+    // ─── EXCEL: PLANTILLA Y IMPORTACIÓN ──────────────────────────────────────
+
+    /**
+     * Descarga una plantilla Excel personalizada para el evento.
+     * GET /api/events/{eventId}/tables/template
+     */
+    @GetMapping("/tables/template")
+    @PreAuthorize("hasRole('CLIENT') or hasAuthority('TABLES_VIEW')")
+    public ResponseEntity<byte[]> downloadTemplate(@PathVariable Long eventId) {
+        try {
+            byte[] bytes = excelService.generateTemplate(eventId);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.parseMediaType(
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+            headers.setContentDisposition(ContentDisposition.attachment()
+                    .filename("plantilla-mesas-evento-" + eventId + ".xlsx").build());
+            return ResponseEntity.ok().headers(headers).body(bytes);
+        } catch (IOException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /**
+     * Importa mesas e invitados desde un Excel subido.
+     * POST /api/events/{eventId}/tables/import
+     */
+    @PostMapping("/tables/import")
+    @PreAuthorize("hasRole('CLIENT') or hasAuthority('TABLES_CREATE')")
+    public ResponseEntity<TableExcelService.ImportResult> importFromExcel(
+            @PathVariable Long eventId,
+            @RequestParam("file") MultipartFile file) {
+        try {
+            TableExcelService.ImportResult result = excelService.importFromExcel(file, eventId);
+            if (!result.errors().isEmpty()) {
+                return ResponseEntity.badRequest().body(result);
+            }
+            return ResponseEntity.ok(result);
+        } catch (IOException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 
     // ─── INVITADOS ────────────────────────────────────────────────────────────

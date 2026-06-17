@@ -25,6 +25,7 @@ public class EventDto {
     private EventStatus status;
     private String statusLabel;
     private String clientUsername;
+    private Long   clientUserId;   // ID del User cliente para gestionar credenciales
     private String notes;
     // Flags de completitud
     private boolean menuConfirmed;

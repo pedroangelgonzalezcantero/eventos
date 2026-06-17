@@ -133,12 +133,25 @@ public class GuestTableService {
 
     // ─── MAPPERS ─────────────────────────────────────────────────────────────
 
+    /**
+     * Cuenta cuántas personas reales hay en un nombre.
+     * "Maria y Jose" -> 2, "Pedro" -> 1
+     */
+    private static int countPersons(String name) {
+        if (name == null || name.trim().isEmpty()) return 1;
+        return Math.max(1, name.trim().split("(?i)\\s+y\\s+").length);
+    }
+
     public GuestTableDto toTableDto(GuestTable t) {
         List<GuestDto> guests = t.getGuests() != null
                 ? t.getGuests().stream().map(this::toGuestDto).collect(Collectors.toList())
                 : guestRepo.findByTableIdOrderByGuestNameAsc(t.getId())
                         .stream().map(this::toGuestDto).collect(Collectors.toList());
-        long allergiesCount = guests.stream().filter(GuestDto::isHasRestrictions).count();
+        int guestCount = guests.stream().mapToInt(g -> countPersons(g.getGuestName())).sum();
+        int allergiesCount = guests.stream()
+                .filter(GuestDto::isHasRestrictions)
+                .mapToInt(g -> countPersons(g.getGuestName()))
+                .sum();
         return GuestTableDto.builder()
                 .id(t.getId())
                 .eventId(t.getEvent().getId())
@@ -147,8 +160,8 @@ public class GuestTableService {
                 .notes(t.getNotes())
                 .position(t.getPosition())
                 .guests(guests)
-                .guestCount(guests.size())
-                .allergiesCount((int) allergiesCount)
+                .guestCount(guestCount)
+                .allergiesCount(allergiesCount)
                 .build();
     }
 

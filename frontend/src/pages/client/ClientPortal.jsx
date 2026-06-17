@@ -251,14 +251,29 @@ function AlergensTab({ event, tables, reload, onGoToMesas }) {
   const allGuests = tables.flatMap(t =>
     (t.guests || []).map(g => ({ ...g, tableName: t.name, tableId: t.id }))
   );
+
+  // Cuenta personas reales: "Maria y Jose" = 2
+  const countPersons = name => name ? name.split(/\s+[yY]\s+/).length : 1;
+
   // Solo mesas con al menos un invitado con restricción
   const tablesWithRestrictions = tables.filter(t =>
     (t.guests || []).some(g => g.allergies || g.diet)
   );
-  const withCount = allGuests.filter(g => g.allergies || g.diet).length;
+  const withCount = allGuests
+    .filter(g => g.allergies || g.diet)
+    .reduce((s, g) => s + countPersons(g.guestName), 0);
   const guestsInFormMesa = formMesaId
     ? (tables.find(t => t.id === parseInt(formMesaId))?.guests || [])
     : [];
+
+  // Expande parejas: "Maria y Jose" → dos entradas virtuales
+  const expandedGuestsInFormMesa = guestsInFormMesa.flatMap(g => {
+    const parts = g.guestName ? g.guestName.split(/\s+[yY]\s+/).map(s => s.trim()).filter(Boolean) : [];
+    if (parts.length > 1) {
+      return parts.map(p => ({ ...g, displayName: p, isCouple: true, coupleFullName: g.guestName }));
+    }
+    return [{ ...g, displayName: g.guestName, isCouple: false }];
+  });
 
   const openForm = () => {
     setShowForm(true); setFormMesaId(''); setFormGuestId('');
@@ -269,18 +284,40 @@ function AlergensTab({ event, tables, reload, onGoToMesas }) {
 
   const handleAdd = async () => {
     if (!formGuestId) { toast.error('Selecciona un invitado'); return; }
+    // formGuestId puede ser "id" o "id::nombreIndividual" (pareja)
+    const [guestIdStr, individualName] = formGuestId.split('::');
     const mesa  = tables.find(t => t.id === parseInt(formMesaId));
-    const guest = (mesa?.guests || []).find(g => g.id === parseInt(formGuestId));
+    const guest = (mesa?.guests || []).find(g => g.id === parseInt(guestIdStr));
     if (!guest) return;
     if (!newAllergies.length && !newDiet) { toast.error('Selecciona al menos un alérgeno o dieta'); return; }
     setSaving(true);
     try {
-      await api.put(`/events/${event.id}/tables/${mesa.id}/guests/${guest.id}`, {
-        guestName: guest.guestName,
-        allergies: newAllergies.join(','),
-        diet: newDiet,
-        observations: newObs,
-      });
+      const isCouple = individualName && individualName !== guest.guestName;
+      if (isCouple) {
+        const parts = guest.guestName.split(/\s+[yY]\s+/).map(s => s.trim()).filter(Boolean);
+        const otherName = parts.find(p => p !== individualName);
+        await api.put(`/events/${event.id}/tables/${mesa.id}/guests/${guest.id}`, {
+          guestName: individualName,
+          allergies: newAllergies.join(','),
+          diet: newDiet,
+          observations: newObs,
+        });
+        if (otherName) {
+          await api.post(`/events/${event.id}/tables/${mesa.id}/guests`, {
+            guestName: otherName,
+            allergies: '',
+            diet: '',
+            observations: '',
+          });
+        }
+      } else {
+        await api.put(`/events/${event.id}/tables/${mesa.id}/guests/${guest.id}`, {
+          guestName: guest.guestName,
+          allergies: newAllergies.join(','),
+          diet: newDiet,
+          observations: newObs,
+        });
+      }
       toast.success('Alérgenos guardados');
       setShowForm(false);
       reload();
@@ -386,11 +423,14 @@ function AlergensTab({ event, tables, reload, onGoToMesas }) {
             <select className="input" value={formMesaId}
               onChange={e => { setFormMesaId(e.target.value); setFormGuestId(''); }}>
               <option value="">— Seleccionar mesa —</option>
-              {tables.map(t => (
-                <option key={t.id} value={t.id}>
-                  {t.name}{t.guestCount ? ` (${t.guestCount} inv.)` : ''}
-                </option>
-              ))}
+              {tables.filter(t => (t.guests || []).length > 0).map(t => {
+                const cnt = (t.guests || []).reduce((s, g) => s + countPersons(g.guestName), 0);
+                return (
+                  <option key={t.id} value={t.id}>
+                    {t.name}{` (${cnt} inv.)`}
+                  </option>
+                );
+              })}
             </select>
           </div>
 
@@ -403,9 +443,11 @@ function AlergensTab({ event, tables, reload, onGoToMesas }) {
                 : (
                   <select className="input" value={formGuestId} onChange={e => setFormGuestId(e.target.value)}>
                     <option value="">— Seleccionar invitado —</option>
-                    {guestsInFormMesa.map(g => (
-                      <option key={g.id} value={g.id}>
-                        {g.guestName}{(g.allergies || g.diet) ? ' ⚠' : ''}
+                    {expandedGuestsInFormMesa.map(g => (
+                      <option key={g.isCouple ? `${g.id}::${g.displayName}` : g.id}
+                              value={g.isCouple ? `${g.id}::${g.displayName}` : g.id}>
+                        {g.displayName}
+                        {g.isCouple ? ' 👫' : ((g.allergies || g.diet) ? ' ⚠' : '')}
                       </option>
                     ))}
                   </select>
@@ -742,7 +784,11 @@ function MesasTab({ event, tables, reloadTables }) {
     } catch { toast.error('Error al mover invitado'); }
   };
 
-  const totalGuests = tables.reduce((s, t) => s + (t.guestCount || 0), 0);
+  const realCount = t => (t.guests && t.guests.length > 0)
+    ? t.guests.reduce((s, g) => s + (g.guestName ? g.guestName.split(/\s+[yY]\s+/).length : 1), 0)
+    : (t.guestCount || 0);
+
+  const totalGuests = tables.reduce((s, t) => s + realCount(t), 0);
   const totalAlergias = tables.reduce((s, t) => s + (t.allergiesCount || 0), 0);
 
   return (
@@ -781,7 +827,8 @@ function MesasTab({ event, tables, reloadTables }) {
         <div className="space-y-3">
           {tables.map(table => {
             const isExpanded = expanded[table.id] !== false;
-            const occupancy = table.capacity ? Math.round((table.guestCount / table.capacity) * 100) : null;
+            const realGuestCount = realCount(table);
+            const occupancy = table.capacity ? Math.round((realGuestCount / table.capacity) * 100) : null;
             return (
               <motion.div key={table.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="card overflow-visible">
                 <div className="flex items-center gap-3">
@@ -791,7 +838,7 @@ function MesasTab({ event, tables, reloadTables }) {
                       {table.allergiesCount > 0 && <span className="badge bg-amber-100 text-amber-700 flex-none">⚠ {table.allergiesCount} alergia{table.allergiesCount !== 1 ? 's' : ''}</span>}
                     </div>
                     <div className="flex items-center gap-3 mt-1">
-                      <span className="text-xs text-stone-500">{table.guestCount}{table.capacity ? `/${table.capacity}` : ''} invitado{table.guestCount !== 1 ? 's' : ''}</span>
+                      <span className="text-xs text-stone-500">{realGuestCount}{table.capacity ? `/${table.capacity}` : ''} invitado{realGuestCount !== 1 ? 's' : ''}</span>
                       {occupancy !== null && <div className="flex-1 max-w-[80px] h-1.5 bg-stone-100 rounded-full overflow-hidden"><div className={`h-full rounded-full transition-all ${occupancy >= 100 ? 'bg-red-500' : occupancy >= 80 ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${Math.min(occupancy, 100)}%` }} /></div>}
                     </div>
                   </div>

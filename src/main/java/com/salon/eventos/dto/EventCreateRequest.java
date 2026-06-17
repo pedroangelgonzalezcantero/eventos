@@ -15,7 +15,6 @@ public class EventCreateRequest {
     private EventType type;
 
     @NotNull(message = "La fecha del evento es obligatoria")
-    @Future(message = "La fecha debe ser futura")
     private LocalDate eventDate;
 
     @Min(value = 1, message = "Debe haber al menos 1 invitado")

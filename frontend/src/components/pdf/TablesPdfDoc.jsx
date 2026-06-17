@@ -20,7 +20,9 @@ const DIET_LABELS = {
  * data = { event, tables: [ { id, name, capacity, guestCount, guests:[{guestName, diet, allergies, observations}] } ] }
  */
 export default function TablesPdfDoc({ data }) {
-  const { event, tables = [] } = data;
+  const { event, tables: allTables = [] } = data;
+  // Ignorar mesas sin invitados
+  const tables = allTables.filter(t => (t.guestCount || 0) > 0);
   const totalGuests = tables.reduce((s, t) => s + (t.guestCount || 0), 0);
   const withAllergies = tables.reduce((s, t) => s + (t.allergiesCount || 0), 0);
 
